@@ -16,6 +16,6 @@ class Article(Base):
 
     article_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     title = Column(String(255), nullable=False)
-    date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    date = Column(DateTime(timezone=True), nullable=False)
     content = Column(Text, nullable=False)
     category = Column(SqlEnum(CategoryEnum, name="category_enum"), nullable=False)
