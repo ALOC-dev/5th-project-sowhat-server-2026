@@ -1,7 +1,7 @@
-from app.models.users import UserInfo
-from app.models.articles import Article
-from app.models.common_analyses import CommonAnalysis
-from app.models.personal_analyses import PersonalAnalysis
+from app.models.user_info import UserInfo
+from app.models.article import Article
+from app.models.common_analysis import CommonAnalysis
+from app.models.personal_analysis import PersonalAnalysis
 
 __all__ = [
     "UserInfo",

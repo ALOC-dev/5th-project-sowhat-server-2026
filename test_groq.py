@@ -4,6 +4,8 @@ from groq import Groq
 
 load_dotenv()
 
+#테스트 용, 나중에 지울 예정
+
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 response = client.chat.completions.create(

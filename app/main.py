@@ -1,15 +1,19 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
+from app.routers import articles, profiles
 
 from app.routers.articles import router as articles_router
 
 app = FastAPI()
 
 
+
 @app.get("/")
 def read_root():
     return {"message": "FastAPI server is running"}
+
+app.include_router(articles.router, profiles.router)  # 라우터 등록
 
 
 @app.get("/health")
@@ -44,3 +48,4 @@ def get_profiles():
 
 
 app.include_router(articles_router)
+    return {"status": "ok"}  # 서버 정상 동작 여부 확인용
