@@ -4,7 +4,7 @@ from app.db.database import get_db
 from app.schemas.user import ProfileCreate, ProfileResponse
 import app.services.user as service
 
-router = APIRouter(prefix="/profiles", tags=["profiles"])
+router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 
 
 # ── POST /profiles ────────────────────────────────────────

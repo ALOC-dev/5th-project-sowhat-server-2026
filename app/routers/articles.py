@@ -7,7 +7,7 @@ from app.schemas.personal_analysis import PersonalAnalysis
 
 import app.services.article as service
 
-router = APIRouter(prefix="/articles", tags=["articles"])
+router = APIRouter(prefix="/api/articles", tags=["articles"])
 
 
 # ── GET /articles ─────────────────────────────────────────
