@@ -25,3 +25,6 @@ MOCK_ARTICLES = [
 
 def get_all_articles():
     return MOCK_ARTICLES
+
+def get_article_by_id(article_id: int):
+    return next((article for article in MOCK_ARTICLES if article["article_id"] == article_id), None)

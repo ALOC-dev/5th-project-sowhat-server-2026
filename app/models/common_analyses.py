@@ -2,6 +2,8 @@ from sqlalchemy import Column, ForeignKey, Integer, String, Text, UniqueConstrai
 from app.db.database import Base
 
 
+
+
 class CommonAnalysis(Base):
     __tablename__ = "common_analysis_id"
     __table_args__ = (
