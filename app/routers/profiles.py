@@ -4,7 +4,7 @@ from app.db.database import get_db
 from app.schemas.profile import ProfileCreate, ProfileResponse
 from app.crud.profiles import upsert_profile
 
-router = APIRouter(prefix="/profiles", tags=["profiles"])
+router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 
 
 # ── POST /profiles ────────────────────────────────────────

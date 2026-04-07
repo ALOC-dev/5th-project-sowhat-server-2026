@@ -5,7 +5,7 @@ from app.services.article_service import list_articles as list_articles_service
 from app.schemas.analysis import ArticleAnalysis
 from app.crud.articles import get_article_by_id
 
-router = APIRouter(prefix="/articles", tags=["articles"])
+router = APIRouter(prefix="/api/articles", tags=["articles"])
 
 
 # ── GET /articles ─────────────────────────────────────────
