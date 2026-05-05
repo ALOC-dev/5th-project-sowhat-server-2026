@@ -1,5 +1,7 @@
 from app.models.user_info import GenderEnum, RegionEnum, JobEnum, InterestEnum
 
+### 추후 DB 연결해서 대폭 수정 예정! ###
+
 MOCK_USERS = [
     {
         "user_id": 1,
@@ -21,13 +23,31 @@ MOCK_USERS = [
 
 
 def create_user(payload):
-    MOCK_USERS.append(payload)
-    return True
+    next_id = max((u["user_id"] for u in MOCK_USERS), default=0) + 1
+    user_data = payload.copy()
+    user_data["user_id"] = next_id
+    MOCK_USERS.append(user_data)
+    return user_data
 
 
 def get_user_by_id(user_id):
     for u in MOCK_USERS:
         if u["user_id"] == user_id:
             return u
+    return None
 
+
+def update_user(user_id, payload):
+    for index, u in enumerate(MOCK_USERS):
+        if u["user_id"] == user_id:
+            updated = {
+                "user_id": user_id,
+                "age": payload["age"],
+                "gender": payload["gender"],
+                "region": payload["region"],
+                "job": payload["job"],
+                "interest": payload["interest"],
+            }
+            MOCK_USERS[index] = updated
+            return updated
     return None
