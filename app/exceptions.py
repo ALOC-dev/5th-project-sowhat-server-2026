@@ -1,6 +1,10 @@
-class UserNotFoundError(Exception):
+from fastapi import HTTPException
+
+
+class UserNotFoundError(HTTPException):
     def __init__(self):
-        self.message = "사용자를 찾을 수 없습니다."
+        self.status_code = 404
+        self.detail = "사용자를 찾을 수 없습니다."
 
 
 class ArticleNotFoundError(Exception):

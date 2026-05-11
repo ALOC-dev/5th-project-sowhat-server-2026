@@ -3,7 +3,9 @@ from app.routers import articles, profiles
 
 app = FastAPI()  # 앱 생성
 
-app.include_router(articles.router, profiles.router)  # 라우터 등록
+# 라우터 등록
+app.include_router(articles.router)
+app.include_router(profiles.router)
 
 
 @app.get("/health")
