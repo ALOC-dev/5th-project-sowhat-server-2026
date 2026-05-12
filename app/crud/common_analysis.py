@@ -21,7 +21,8 @@ MOCK_ANALYSES = [
 
 
 def get_analysis_by_article(article_id):
-    for a in MOCK_ANALYSES:
-        if a["article_id"] == article_id:
-            return {"summary": a["summary"], "keyword": a["keyword"]}
+    # 일단 llm 테스트
+    # for a in MOCK_ANALYSES:
+    #     if a["article_id"] == article_id:
+    #         return {"summary": a["summary"], "keyword": a["keyword"]}
     return None
