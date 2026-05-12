@@ -49,7 +49,7 @@ def test_get_profile_not_found(client):
     assert response.json()["detail"] == "사용자를 찾을 수 없습니다."
 
 
-# ── PUT /profiles/{user_id} 테스트 ──────────────────────────
+# ── PATCH /profiles/{user_id} 테스트 ──────────────────────────
 
 
 def test_modify_profile_success(client):
@@ -66,8 +66,16 @@ def test_modify_profile_success(client):
 
     # 2. 나이 수정
     update_payload = {"age": 25}
-    # 실제 라우터 구현에 따라 PUT을 쓸지 PATCH를 쓸지 결정하세요.
     response = client.patch(f"/api/profiles/{created_user_id}", json=update_payload)
 
     assert response.status_code == 200
     assert response.json()["age"] == 25
+
+
+def test_modify_profile_not_found(client):
+    # 존재하지 않는 사용자의 정보 수정 시도
+    update_payload = {"age": 25}
+    response = client.patch(f"/api/profiles/999", json=update_payload)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "사용자를 찾을 수 없습니다."
