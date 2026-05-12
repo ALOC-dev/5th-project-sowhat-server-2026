@@ -1,4 +1,15 @@
 .venv/
 __pycache__/
 *.pyc
+
+# pytest
+.pytest_cache/
+htmlcov/
+.coverage
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
 .env

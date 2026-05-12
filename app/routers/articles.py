@@ -21,32 +21,31 @@ def list_articles(
         articles = service.get_all_articles(db)
         return articles
     except Exception as e:
-        raise HTTPException(status_code=404, detail=e)
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 # ── GET /articles/analysis (순서 중요: /{article_id} 보다 위) ──
 
 
 @router.get("/analysis", response_model=PersonalAnalysis)
-def get_analysis(
+async def get_analysis(
     article_id: int = Query(...),
     user_id: int = Query(...),
     db: Session = Depends(get_db),
 ):
     try:
-        analysis = service.get_personal_analysis(db, article_id, user_id)
+        analysis = await service.get_personal_analysis(db, article_id, user_id)
         return analysis
     except Exception as e:
-        raise HTTPException(status_code=404, detail=e)
-
+        raise HTTPException(status_code=404, detail=str(e))
 
 # ── GET /articles/{article_id} ────────────────────────────
 
 
 @router.get("/{article_id}", response_model=ArticleDetailResponse)
-def get_article(article_id: int, db: Session = Depends(get_db)):
+async def get_article(article_id: int, db: Session = Depends(get_db)):
     try:
-        articleDetail = service.get_common_analysis(db, article_id)
+        articleDetail = await service.get_common_analysis(db, article_id)
         return articleDetail
     except Exception as e:
-        raise HTTPException(status_code=404, detail=e)
+        raise HTTPException(status_code=404, detail=str(e))

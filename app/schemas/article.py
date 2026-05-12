@@ -16,4 +16,4 @@ class ArticleDetailResponse(BaseModel):
     content: str
     category: str
     summary: str
-    terms: str
+    keyword: str
