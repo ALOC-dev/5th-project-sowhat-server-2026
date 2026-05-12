@@ -29,7 +29,7 @@ def get_profile(user_id: int, db: Session = Depends(get_db)):
     return profile
 
 
-# ── PUT /profiles/{user_id} ─────────────────────────────────
+# ── PATCH /profiles/{user_id} ─────────────────────────────────
 
 
 @router.patch("/{user_id}", response_model=ProfileUpdateResponse)
