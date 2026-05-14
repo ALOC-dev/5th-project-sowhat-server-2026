@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Enum, Integer
 from app.db.database import Base
 
-from app.models.enums import GenderEnum, RegionEnum, JobEnum, InterestEnum
+from app.models.enums import GenderEnum, RegionEnum, JobEnum, CategoryEnum
 
 
 class UserInfo(Base):
@@ -12,4 +12,4 @@ class UserInfo(Base):
     gender = Column(Enum(GenderEnum, name="gender_enum"), nullable=False)
     region = Column(Enum(RegionEnum, name="region_enum"), nullable=False)
     job = Column(Enum(JobEnum, name="job_enum"), nullable=False)
-    interest = Column(Enum(InterestEnum, name="interest_enum"), nullable=False)
+    interest = Column(Enum(CategoryEnum, name="category_enum"), nullable=False)
