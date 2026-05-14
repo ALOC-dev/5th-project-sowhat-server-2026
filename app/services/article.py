@@ -105,6 +105,7 @@ async def get_personal_analysis(db, article_id, user_id):
         }
 
     result = await generate_personal_analysis_with_groq(article_data, user_profile)
+    result.update({"article_id": article_id, "user_id": user_id})
     personal_crud.create_analysis(result)  # 생성된 개인 해설을 DB에 저장
 
     return result

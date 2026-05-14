@@ -11,7 +11,7 @@ import aiohttp
 import feedparser
 from bs4 import BeautifulSoup
 
-from app.crud.article import create_article
+import app.crud.article as article_crud
 
 # 수집 대상 RSS 피드 목록
 YONHAP_RSS: dict[str, str] = {
@@ -181,7 +181,7 @@ async def process_yonhap_rss(
             print(f"[URL]  {link}")
 
             # DB 중복 검사 (DB 연결 후 주석 해제)
-            # if crud_article.get_article_by_link(db, link=link):
+            # if article_crud.get_article_by_link(db, link=link):
             #     print("[SKIP] 이미 저장된 기사")
             #     continue
 
@@ -207,10 +207,14 @@ async def process_yonhap_rss(
             await asyncio.sleep(0.5)
 
     print(f"[DONE]  {category_name} 수집 완료 - {len(results)}건")
+
+    # DB에 기사 저장
+    article_crud.create_articles(results)
+
     return results
 
 
-# 전체 실
+# 전체 실행기
 
 
 async def run_yonhap_crawling() -> dict[str, list[dict]]:
@@ -233,5 +237,5 @@ async def run_yonhap_crawling() -> dict[str, list[dict]]:
 
 # 직접 실행
 
-if __name__ == "__main__":
-    asyncio.run(run_yonhap_crawling())
+# if __name__ == "__main__":
+#     asyncio.run(run_yonhap_crawling())

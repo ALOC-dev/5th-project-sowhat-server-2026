@@ -28,10 +28,16 @@ MOCK_ARTICLES = []
 
 def create_article(payload):
     next_id = max((a["article_id"] for a in MOCK_ARTICLES), default=0) + 1
-    article_data = payload.copy()
-    article_data["article_id"] = next_id
-    MOCK_ARTICLES.append(article_data)
-    return article_data
+    new_article = payload.copy()
+    new_article["article_id"] = next_id
+    new_article["category"] = "미분류"  # 임시
+    MOCK_ARTICLES.append(new_article)
+    return new_article
+
+
+def create_articles(articles):
+    for article in articles:
+        create_article(article)
 
 
 def get_all_articles():
