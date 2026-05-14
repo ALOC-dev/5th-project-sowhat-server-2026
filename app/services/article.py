@@ -15,7 +15,6 @@ from app.services.llm_service import (
     generate_personal_analysis_with_groq,
 )
 
-# from app.core.llm import generate_analysis
 
 def get_all_articles(db):
     articles = deepcopy(article_crud.get_all_articles())
@@ -32,23 +31,31 @@ async def get_common_analysis(db, article_id):
     if not article:
         raise ArticleNotFoundError
 
+    article_detail = deepcopy(article)  # 기사 상세정보 복사 (공통해설 추가하기 위함)
+
+    # DB에 공통해설이 존재하는지 확인
     common = common_crud.get_analysis_by_article(article_id)
+    if common:
+        article_detail.update(common)  # 기사 상세정보에 공통 해설 추가
 
-    if not common:
-        result = await generate_common_analysis_with_groq(
-            title=article["title"],
-            content=article["content"],
-            category=article["category"],
-        )
+    # 없으면 LLM API호출로 해설 생성하기
+    if isinstance(article, dict):
+        article_data = {
+            "title": article["title"],
+            "content": article["content"],
+            "category": article["category"] or "미분류",
+        }
+    else:
+        article_data = {
+            "title": article.title,
+            "content": article.content,
+            "category": article.category or "미분류",
+        }
 
-        article_detail = deepcopy(article)
-        article_detail["summary"] = result["summary"]
-        article_detail["keyword"] = result["keyword"]
-        return article_detail
+    result = await generate_common_analysis_with_groq(article_data)
+    common_crud.create_analysis(result)  # 생성된 공통 해설을 DB에 저장
 
-
-    article_detail = deepcopy(article)
-    article_detail.update(common) # 기사 상세정보에 공통요약 정보 추가
+    article_detail.update(result)  # 기사 상세정보에 공통 해설 추가
     return article_detail
 
 
@@ -61,33 +68,43 @@ async def get_personal_analysis(db, article_id, user_id):
     if not user:
         raise UserNotFoundError
 
+    # DB에 개인해설이 존재하는지 확인
     personal = personal_crud.get_analysis_by_article_and_user(article_id, user_id)
+    if personal:
+        return personal
 
-    if not personal:
-        if isinstance(user, dict):
-            user_profile = {
-                "age": user["age"],
-                "gender": user["gender"],
-                "region": user["region"],
-                "job": user["job"],
-                "interest": user["interest"],
-            }
-        else:
-            user_profile = {
-                "age": user.age,
-                "gender": user.gender,
-                "region": user.region,
-                "job": user.job,
-                "interest": user.interest,
-            }
+    # 없으면 LLM API호출로 해설 생성하기
+    if isinstance(article, dict):
+        article_data = {
+            "title": article["title"],
+            "content": article["content"],
+            "category": article["category"] or "미분류",
+        }
+    else:
+        article_data = {
+            "title": article.title,
+            "content": article.content,
+            "category": article.category or "미분류",
+        }
 
-        result = await generate_personal_analysis_with_groq(
-            title=article["title"],
-            content=article["content"],
-            category=article["category"],
-            user_profile=user_profile,
-        )
+    if isinstance(user, dict):
+        user_profile = {
+            "age": user["age"],
+            "gender": user["gender"],
+            "region": user["region"],
+            "job": user["job"],
+            "interest": user["interest"],
+        }
+    else:
+        user_profile = {
+            "age": user.age,
+            "gender": user.gender,
+            "region": user.region,
+            "job": user.job,
+            "interest": user.interest,
+        }
 
-        return result
+    result = await generate_personal_analysis_with_groq(article_data, user_profile)
+    personal_crud.create_analysis(result)  # 생성된 개인 해설을 DB에 저장
 
-    return personal
+    return result

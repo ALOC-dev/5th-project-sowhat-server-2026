@@ -39,13 +39,14 @@ async def get_analysis(
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+
 # ── GET /articles/{article_id} ────────────────────────────
 
 
 @router.get("/{article_id}", response_model=ArticleDetailResponse)
 async def get_article(article_id: int, db: Session = Depends(get_db)):
     try:
-        articleDetail = await service.get_common_analysis(db, article_id)
-        return articleDetail
+        article_detail = await service.get_common_analysis(db, article_id)
+        return article_detail
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))

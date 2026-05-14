@@ -87,15 +87,12 @@ PERSONAL_ANALYSIS_PROMPT = """
 관심사: {interest}
 """.strip()
 
-async def generate_common_analysis_with_groq(
-    title: str,
-    content: str,
-    category: str | None = None,
-):
+
+async def generate_common_analysis_with_groq(article_data: dict):
     prompt = COMMON_ANALYSIS_PROMPT.format(
-        title=title,
-        category=category or "미분류",
-        content=content,
+        title=article_data["title"],
+        category=article_data["category"],
+        content=article_data["content"],
     )
 
     response = await client.chat.completions.create(
@@ -111,16 +108,11 @@ async def generate_common_analysis_with_groq(
     return json.loads(raw_text)
 
 
-async def generate_personal_analysis_with_groq(
-    title: str,
-    content: str,
-    user_profile: dict,
-    category: str | None = None,
-):
+async def generate_personal_analysis_with_groq(article_data: dict, user_profile: dict):
     prompt = PERSONAL_ANALYSIS_PROMPT.format(
-        title=title,
-        category=category or "미분류",
-        content=content,
+        title=article_data["title"],
+        category=article_data["category"],
+        content=article_data["content"],
         age=user_profile["age"],
         gender=user_profile["gender"],
         region=user_profile["region"],
