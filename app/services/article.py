@@ -53,7 +53,9 @@ async def get_common_analysis(db, article_id):
         }
 
     result = await generate_common_analysis_with_groq(article_data)
-    common_crud.create_analysis(result)  # 생성된 공통 해설을 DB에 저장
+    common_crud.create_analysis(
+        {"article_id": article_id, **result}
+    )  # 생성된 공통 해설을 DB에 저장
 
     article_detail.update(result)  # 기사 상세정보에 공통 해설 추가
     return article_detail
@@ -105,7 +107,8 @@ async def get_personal_analysis(db, article_id, user_id):
         }
 
     result = await generate_personal_analysis_with_groq(article_data, user_profile)
-    result.update({"article_id": article_id, "user_id": user_id})
-    personal_crud.create_analysis(result)  # 생성된 개인 해설을 DB에 저장
+    personal_crud.create_analysis(
+        {"article_id": article_id, "user_id": user_id, **result}
+    )  # 생성된 개인 해설을 DB에 저장
 
     return result
