@@ -105,6 +105,7 @@ async def generate_common_analysis_with_groq(article_data: dict):
     )
 
     raw_text = response.choices[0].message.content.strip()
+    print(raw_text)  # LLM 답변 원문 확인용
     return json.loads(raw_text)
 
 
@@ -130,4 +131,5 @@ async def generate_personal_analysis_with_groq(article_data: dict, user_profile:
     )
 
     raw_text = response.choices[0].message.content.strip()
+    print(raw_text)  # LLM 답변 원문 확인용
     return json.loads(raw_text)
