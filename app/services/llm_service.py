@@ -94,8 +94,7 @@ async def generate_common_analysis_with_groq(article_data: dict):
     response = await client.chat.completions.create(
         model=settings.GROQ_MODEL,
         messages=[
-            {"role": "system", 
-             "content": SYSTEM_JSON_PROMPT},
+            {"role": "system", "content": SYSTEM_JSON_PROMPT},
             {"role": "user", "content": prompt},
         ],
         temperature=0.2,
@@ -104,25 +103,17 @@ async def generate_common_analysis_with_groq(article_data: dict):
 
     raw_text = response.choices[0].message.content.strip()
 
-    raw_text = (
-        raw_text
-        .replace("```json", "")
-        .replace("```", "")
-        .strip()
-    )
+    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
 
     print(raw_text)  # LLM 답변 원문 확인용
-    
+
     try:
         return json.loads(raw_text)
     except json.JSONDecodeError as exc:
         print(f"[JSON ERROR] {exc}")
         print(raw_text)
 
-        return {
-            "summary": "해설 생성 실패",
-            "keyword": "오류"
-        }
+        return {"summary": "해설 생성 실패", "keyword": "오류"}
 
 
 async def generate_personal_analysis_with_groq(article_data: dict, user_profile: dict):
@@ -149,15 +140,10 @@ async def generate_personal_analysis_with_groq(article_data: dict, user_profile:
 
     raw_text = response.choices[0].message.content.strip()
 
-    raw_text = (
-        raw_text
-        .replace("```json", "")
-        .replace("```", "")
-        .strip()
-    )
+    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
 
     print(raw_text)  # LLM 답변 원문 확인용
-    
+
     try:
         return json.loads(raw_text)
 
@@ -165,7 +151,4 @@ async def generate_personal_analysis_with_groq(article_data: dict, user_profile:
         print(f"[JSON ERROR] {exc}")
         print(raw_text)
 
-        return {
-        "effect": "해설 생성 실패",
-        "solution": "잠시 후 다시 시도해주세요."
-    }
+        return {"effect": "해설 생성 실패", "solution": "잠시 후 다시 시도해주세요."}
