@@ -5,14 +5,17 @@
     3. RSS 처리기    - process_yonhap_rss()
     4. 전체 실행기   - run_yonhap_crawling()
 """
+
 import asyncio
 import aiohttp
 import feedparser
 from bs4 import BeautifulSoup
 
+import app.crud.article as article_crud
+
 # 수집 대상 RSS 피드 목록
 YONHAP_RSS: dict[str, str] = {
-    "연합뉴스(전체)":    "https://www.yna.co.kr/rss/news.xml",
+    "연합뉴스(전체)": "https://www.yna.co.kr/rss/news.xml",
     "연합뉴스(산업/IT)": "https://www.yna.co.kr/rss/industry.xml",
 }
 
@@ -44,7 +47,8 @@ REMOVE_SELECTORS: list[str] = [
 ]
 
 
-#paragraph crawler
+# paragraph crawler
+
 
 async def fetch_yonhap_body(
     session: aiohttp.ClientSession,
@@ -97,8 +101,9 @@ async def fetch_yonhap_body(
         return ""
 
 
-#RSS Process
-    
+# RSS Process
+
+
 async def fetch_rss_entries(rss_url: str) -> list:
     """
     RSS URL을 비동기로 요청하고 feedparser로 파싱한 entry 목록을 반환한다.
@@ -112,7 +117,11 @@ async def fetch_rss_entries(rss_url: str) -> list:
     """
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(rss_url, headers=REQUEST_HEADERS, timeout=aiohttp.ClientTimeout(total=10)) as response:
+            async with session.get(
+                rss_url,
+                headers=REQUEST_HEADERS,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
                 if response.status != 200:
                     print(f"[HTTP {response.status}] RSS 요청 실패: {rss_url}")
                     return []
@@ -165,14 +174,14 @@ async def process_yonhap_rss(
     async with aiohttp.ClientSession() as session:
         for entry in target_entries:
             title = entry.get("title", "")
-            link  = entry.get("link",  "")
+            link = entry.get("link", "")
 
             print("-" * 60)
             print(f"[기사] {title}")
             print(f"[URL]  {link}")
 
             # DB 중복 검사 (DB 연결 후 주석 해제)
-            # if crud_article.get_article_by_link(db, link=link):
+            # if article_crud.get_article_by_link(db, link=link):
             #     print("[SKIP] 이미 저장된 기사")
             #     continue
 
@@ -182,12 +191,14 @@ async def process_yonhap_rss(
                 print(f"[OK]   본문 {len(content)}자 수집 완료")
                 print(content[:200])
 
-                results.append({
-                    "title":   title,
-                    "link":    link,
-                    "content": content,
-                    "media":   "연합뉴스",
-                })
+                results.append(
+                    {
+                        "title": title,
+                        "link": link,
+                        "content": content,
+                        "media": "연합뉴스",
+                    }
+                )
 
             else:
                 print("[FAIL] 본문 수집 실패")
@@ -196,10 +207,15 @@ async def process_yonhap_rss(
             await asyncio.sleep(0.5)
 
     print(f"[DONE]  {category_name} 수집 완료 - {len(results)}건")
+
+    # DB에 기사 저장
+    article_crud.create_articles(results)
+
     return results
 
 
-#전체 실
+# 전체 실행기
+
 
 async def run_yonhap_crawling() -> dict[str, list[dict]]:
     """
@@ -211,10 +227,7 @@ async def run_yonhap_crawling() -> dict[str, list[dict]]:
     print("=" * 60)
     print("[CRAWL] 연합뉴스 전체 RSS 수집 시작")
 
-    tasks = {
-        name: process_yonhap_rss(name, url)
-        for name, url in YONHAP_RSS.items()
-    }
+    tasks = {name: process_yonhap_rss(name, url) for name, url in YONHAP_RSS.items()}
 
     # asyncio.gather로 모든 카테고리 병렬 실행
     results = await asyncio.gather(*tasks.values())
@@ -224,5 +237,5 @@ async def run_yonhap_crawling() -> dict[str, list[dict]]:
 
 # 직접 실행
 
-if __name__ == "__main__":
-    asyncio.run(run_yonhap_crawling())
+# if __name__ == "__main__":
+#     asyncio.run(run_yonhap_crawling())
