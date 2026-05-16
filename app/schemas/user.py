@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
-from app.models.enums import GenderEnum, RegionEnum, JobEnum, InterestEnum
+from app.models.enums import GenderEnum, RegionEnum, JobEnum, CategoryEnum
 
 
 # 회원가입, 정보 수정 요청에서 입력하는 정보만
@@ -10,7 +10,7 @@ class ProfileBase(BaseModel):
     gender: GenderEnum
     region: RegionEnum
     job: JobEnum
-    interest: InterestEnum
+    interest: CategoryEnum
 
     # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
     model_config = ConfigDict(from_attributes=True)
@@ -27,7 +27,7 @@ class ProfileUpdateRequest(ProfileBase):
     gender: Optional[GenderEnum] = None
     region: Optional[RegionEnum] = None
     job: Optional[JobEnum] = None
-    interest: Optional[InterestEnum] = None
+    interest: Optional[CategoryEnum] = None
 
 
 # 프로필 조회 응답 (id까지 포함된 버전)

@@ -16,18 +16,15 @@ COMMON_ANALYSIS_PROMPT = """
 2. 기사 이해에 가장 중요한 핵심 용어 1개를 선택한다.
 
 [작성 규칙]
-- summary는 기사 본문에 직접 드러난 핵심 내용만 바탕으로, 최대 3문장 또는 200자 이내로 요약한다.
-- summary에는 기사에서 중요한 사실과 핵심 맥락을 포함하되, 너무 짧아서 핵심이 빠지지 않게 작성한다.
-- 기사 본문에 없는 배경지식, 일반 상식, 추론, 확대 해석은 추가하지 않는다.
-- summary는 원문 문장을 단순히 나열하거나 반복하지 말고, 핵심 내용을 자연스럽게 정리해서 요약한다.
-- 여러 문장의 내용을 묶을 수 있으면 하나의 더 간결한 문장으로 통합한다.
-- 같은 의미의 표현을 반복하지 않는다.
-- summary는 기사 내용을 압축한 결과여야 하며, 문장별 재진술처럼 보이지 않게 작성한다.
-- summary는 기사 내용과 의미적으로 일치해야 하며, 어려운 표현은 쉬운 표현으로 바꾼다.
-- keyword는 기사 본문에 실제로 등장하거나 본문 내용에서 직접 확인 가능한 핵심 용어 1개만 선택한다.
-- keyword는 반드시 용어명만 작성하며, 콜론(:), 하이픈(-), 괄호, 설명 문장, 예시는 포함하지 않는다.
-- 불필요한 설명, 서론, 부가 문장은 쓰지 않는다.
-- 반드시 JSON 형식으로만 출력하며, JSON 외의 다른 문장은 절대 출력하지 않는다.
+- summary는 기사 핵심 내용을 최대 3문장 또는 200자 이내로 요약한다.
+- 기사 본문에 없는 내용, 추론, 확대 해석은 추가하지 않는다.
+- 원문을 단순 복붙하지 말고 자연스럽게 정리한다.
+- 같은 의미를 반복하지 않는다.
+- 어려운 표현은 쉬운 표현으로 바꾼다.
+- keyword는 기사 핵심과 직접 관련된 용어 1개만 작성한다.
+- keyword에는 설명을 포함하지 않는다.
+- 문자열 내부에 큰따옴표(") 사용이 필요하면 작은따옴표(')로 대체한다.
+- 반드시 아래 JSON 형식만 출력한다.
 
 [출력 형식]
 {{
@@ -54,19 +51,13 @@ PERSONAL_ANALYSIS_PROMPT = """
 
 [작성 규칙]
 - effect는 기사 내용과 사용자 정보를 연결해서 작성한다.
-- effect는 "이 뉴스가 왜 이 사용자와 관련이 있는지"가 드러나야 한다.
-- 사용자 정보와 무관한 일반론만 작성하지 않는다.
-- 사용자의 지역, 나이, 성별, 직업, 관심사를 가능한 범위에서 반영한다.
-- 기사와 사용자 정보의 관련성이 약하면 억지로 연결하지 말고, 과장하지 않는다.
-- solution은 사용자가 실제로 할 수 있는 확인, 준비, 대응 행동 중심으로 작성한다.
-- 과장되거나 불확실한 조언은 하지 않는다.
-- 기사 원문에 없는 사실을 만들어내지 않는다.
-- 투자, 법률, 의료처럼 고위험 판단을 단정적으로 제시하지 않는다.
-- 가능하면 공식 확인이 필요하다는 방향으로 작성한다.
+- 사용자와 관련성이 약하면 과장해서 연결하지 않는다.
+- solution은 실제로 할 수 있는 행동 중심으로 작성한다.
+- 기사 원문에 없는 사실을 만들지 않는다.
+- 투자, 법률, 의료 관련 판단을 단정적으로 제시하지 않는다.
 - effect와 solution은 각각 2~3문장으로 작성한다.
-- 불필요한 설명, 서론, 부가 문장은 쓰지 않는다.
-- 반드시 JSON 형식으로만 출력한다.
-- JSON 외의 다른 문장은 절대 출력하지 않는다.
+- 문자열 내부에 큰따옴표(") 사용이 필요하면 작은따옴표(')로 대체한다.
+- 반드시 아래 JSON 형식만 출력한다.
 
 [출력 형식]
 {{
@@ -87,6 +78,11 @@ PERSONAL_ANALYSIS_PROMPT = """
 관심사: {interest}
 """.strip()
 
+SYSTEM_JSON_PROMPT = (
+    "모든 응답은 json.loads()로 바로 파싱 가능한 JSON 형식이어야 한다. "
+    "JSON 외의 설명문, 코드블럭, 마크다운, 주석은 출력하지 마라."
+)
+
 
 async def generate_common_analysis_with_groq(article_data: dict):
     prompt = COMMON_ANALYSIS_PROMPT.format(
@@ -98,15 +94,35 @@ async def generate_common_analysis_with_groq(article_data: dict):
     response = await client.chat.completions.create(
         model=settings.GROQ_MODEL,
         messages=[
-            {"role": "system", "content": "너는 JSON만 출력하는 뉴스 해설 도우미다."},
+            {"role": "system", 
+             "content": SYSTEM_JSON_PROMPT},
             {"role": "user", "content": prompt},
         ],
         temperature=0.2,
+        response_format={"type": "json_object"},
     )
 
     raw_text = response.choices[0].message.content.strip()
+
+    raw_text = (
+        raw_text
+        .replace("```json", "")
+        .replace("```", "")
+        .strip()
+    )
+
     print(raw_text)  # LLM 답변 원문 확인용
-    return json.loads(raw_text)
+    
+    try:
+        return json.loads(raw_text)
+    except json.JSONDecodeError as exc:
+        print(f"[JSON ERROR] {exc}")
+        print(raw_text)
+
+        return {
+            "summary": "해설 생성 실패",
+            "keyword": "오류"
+        }
 
 
 async def generate_personal_analysis_with_groq(article_data: dict, user_profile: dict):
@@ -124,12 +140,32 @@ async def generate_personal_analysis_with_groq(article_data: dict, user_profile:
     response = await client.chat.completions.create(
         model=settings.GROQ_MODEL,
         messages=[
-            {"role": "system", "content": "너는 JSON만 출력하는 뉴스 해설 도우미다."},
+            {"role": "system", "content": SYSTEM_JSON_PROMPT},
             {"role": "user", "content": prompt},
         ],
         temperature=0.2,
+        response_format={"type": "json_object"},
     )
 
     raw_text = response.choices[0].message.content.strip()
+
+    raw_text = (
+        raw_text
+        .replace("```json", "")
+        .replace("```", "")
+        .strip()
+    )
+
     print(raw_text)  # LLM 답변 원문 확인용
-    return json.loads(raw_text)
+    
+    try:
+        return json.loads(raw_text)
+
+    except json.JSONDecodeError as exc:
+        print(f"[JSON ERROR] {exc}")
+        print(raw_text)
+
+        return {
+        "effect": "해설 생성 실패",
+        "solution": "잠시 후 다시 시도해주세요."
+    }

@@ -1,35 +1,3 @@
-# MOCK_ANALYSES = [
-#     {
-#         "personal_analysis_id": 1,
-#         "article_id": 1,
-#         "user_id": 1,
-#         "effect": "이 소식은 이런 영향을 줄 수 있어요",
-#         "solution": "이렇게 대비하면 좋아요",
-#     },
-#     {
-#         "personal_analysis_id": 2,
-#         "article_id": 1,
-#         "user_id": 2,
-#         "effect": "이 소식은 이런 영향을 줄 수 있어요",
-#         "solution": "이렇게 대비하면 좋아요",
-#     },
-#     {
-#         "personal_analysis_id": 3,
-#         "article_id": 2,
-#         "user_id": 1,
-#         "effect": "이 소식은 이런 영향을 줄 수 있어요",
-#         "solution": "이렇게 대비하면 좋아요",
-#     },
-#     {
-#         "personal_analysis_id": 4,
-#         "article_id": 2,
-#         "user_id": 2,
-#         "effect": "이 소식은 이런 영향을 줄 수 있어요",
-#         "solution": "이렇게 대비하면 좋아요",
-#     },
-# ]
-
-# 시작할 때는 비어있는 리스트 준비, 기사 크롤링->LLM 호출 후 저장하기
 MOCK_ANALYSES = []
 
 

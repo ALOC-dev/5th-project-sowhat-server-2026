@@ -3,12 +3,7 @@ from enum import Enum as PyEnum
 from sqlalchemy import Column, DateTime, Enum as SqlEnum, Integer, String, Text
 from sqlalchemy.sql import func
 from app.db.database import Base
-
-
-class CategoryEnum(PyEnum):
-    POLITICS = "POLITICS"
-    ECONOMY = "ECONOMY"
-    SOCIETY = "SOCIETY"
+from app.models.enums import CategoryEnum
 
 
 class Article(Base):
