@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from app.models.enums import CategoryEnum
+
 # class ArticleResponse(BaseModel):
 #     article_id: int
 #     title: str
