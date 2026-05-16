@@ -22,7 +22,7 @@ class JobEnum(str, Enum):
     ETC = "ETC"
 
 
-class CategoryEnum(str, Enum):
+class InterestEnum(str, Enum):
     POLITICS = "POLITICS"
     ECONOMY = "ECONOMY"
     SOCIETY = "SOCIETY"
