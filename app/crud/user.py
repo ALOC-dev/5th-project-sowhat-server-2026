@@ -1,6 +1,6 @@
 # from app.models.user_info import UserInfo
 
-# from app.models.enums import GenderEnum, RegionEnum, JobEnum, InterestEnum
+# from app.models.enums import GenderEnum, RegionEnum, JobEnum, CategoryEnum
 
 MOCK_USERS = [
     {
