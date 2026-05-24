@@ -8,7 +8,7 @@ from app.exceptions import UserNotFoundError
 router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 
 
-# ── POST /profiles ────────────────────────────────────────
+# ── POST /api/profiles ────────────────────────────────────────
 
 
 # 성공 시 응답: 201 CREATED
@@ -18,7 +18,7 @@ def create_profile(payload: ProfileCreateRequest, db: Session = Depends(get_db))
     return created_profile
 
 
-# ── GET /profiles/{user_id} ─────────────────────────────────
+# ── GET /api/profiles/{user_id} ─────────────────────────────────
 
 
 @router.get("/{user_id}", response_model=ProfileGetResponse)
@@ -29,7 +29,7 @@ def get_profile(user_id: int, db: Session = Depends(get_db)):
     return profile
 
 
-# ── PATCH /profiles/{user_id} ─────────────────────────────────
+# ── PATCH /api/profiles/{user_id} ─────────────────────────────────
 
 
 @router.patch("/{user_id}", response_model=ProfileUpdateResponse)
