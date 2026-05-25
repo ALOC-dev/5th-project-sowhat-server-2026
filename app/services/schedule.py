@@ -15,9 +15,17 @@ import app.crud.article as article_crud
 
 # 수집 대상 RSS 피드 목록
 YONHAP_RSS: dict[str, str] = {
-    "연합뉴스(전체)": "https://www.yna.co.kr/rss/news.xml",
+    "연합뉴스(전체)":    "https://www.yna.co.kr/rss/news.xml",
     "연합뉴스(산업/IT)": "https://www.yna.co.kr/rss/industry.xml",
+    "연합뉴스(정치)":    "https://www.yna.co.kr/rss/politics.xml",
+    "연합뉴스(경제)":    "https://www.yna.co.kr/rss/economy.xml",
+    "연합뉴스(사회)":    "https://www.yna.co.kr/rss/society.xml",
+    "연합뉴스(세계)":    "https://www.yna.co.kr/rss/international.xml",
+    "연합뉴스(문화)":    "https://www.yna.co.kr/rss/culture.xml",
+    "연합뉴스(스포츠)":  "https://www.yna.co.kr/rss/sports.xml",
+    "연합뉴스(연예)":    "https://www.yna.co.kr/rss/entertainment.xml"
 }
+
 
 REQUEST_HEADERS: dict[str, str] = {
     "User-Agent": (
