@@ -96,7 +96,7 @@ async def get_personal_analysis(db, article_id, user_id):
             "region": user["region"],
             "job": user["job"],
             "interest": user["interest"],
-            "news_purpose": user["news_purpose"],
+            "purpose": user["purpose"],
         }
     else:
         user_profile = {
@@ -105,7 +105,7 @@ async def get_personal_analysis(db, article_id, user_id):
             "region": user.region,
             "job": user.job,
             "interest": user.interest,
-            "news_purpose": user.news_purpose,
+            "purpose": user.purpose,
         }
 
     result = await generate_personal_analysis(article_data, user_profile)

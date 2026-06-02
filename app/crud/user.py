@@ -10,7 +10,7 @@ MOCK_USERS = [
         "region": "SEOUL",
         "job": "STUDENT",
         "interest": "ECONOMY",
-        "news_purpose": "EMPLOYMENT",
+        "purpose": "EMPLOYMENT",
     },
     {
         "user_id": 2,
@@ -19,7 +19,7 @@ MOCK_USERS = [
         "region": "INCHEON",
         "job": "OFFICE_WORKER",
         "interest": "POLITICS",
-        "news_purpose": "INVESTMENT",
+        "purpose": "INVESTMENT",
     },
 ]
 
@@ -60,7 +60,7 @@ def update_user(db, user_id, payload):
             MOCK_USERS[index].update(update_data)
 
             return MOCK_USERS[index]
-        
+
     return None
 
     # db_user = db.query(UserInfo).filter(UserInfo.user_id == user_id).first()

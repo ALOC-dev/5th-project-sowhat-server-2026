@@ -24,12 +24,7 @@ async def generate_common_analysis(article_data: dict):
 
     raw_text = response.choices[0].message.content.strip()
 
-    raw_text = (
-        raw_text
-        .replace("```json", "")
-        .replace("```", "")
-        .strip()
-    )
+    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
 
     print(raw_text)
 
@@ -59,7 +54,7 @@ async def generate_personal_analysis(
         region=user_profile["region"],
         job=user_profile["job"],
         interest=user_profile["interest"],
-        news_purpose=user_profile["news_purpose"],
+        purpose=user_profile["purpose"],
     )
 
     response = await create_json_completion(
@@ -71,12 +66,7 @@ async def generate_personal_analysis(
 
     raw_text = response.choices[0].message.content.strip()
 
-    raw_text = (
-        raw_text
-        .replace("```json", "")
-        .replace("```", "")
-        .strip()
-    )
+    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
 
     print(raw_text)
 

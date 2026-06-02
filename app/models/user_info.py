@@ -1,7 +1,13 @@
 from sqlalchemy import Column, Enum, Integer
 from app.db.database import Base
 
-from app.models.enums import GenderEnum, RegionEnum, JobEnum, CategoryEnum, NewsPurposeEnum
+from app.models.enums import (
+    GenderEnum,
+    RegionEnum,
+    JobEnum,
+    CategoryEnum,
+    PurposeEnum,
+)
 
 
 class UserInfo(Base):
@@ -13,4 +19,4 @@ class UserInfo(Base):
     region = Column(Enum(RegionEnum, name="region_enum"), nullable=False)
     job = Column(Enum(JobEnum, name="job_enum"), nullable=False)
     interest = Column(Enum(CategoryEnum, name="category_enum"), nullable=False)
-    news_purpose = Column(Enum(NewsPurposeEnum, name="news_purpose_enum"), nullable=False)
+    purpose = Column(Enum(PurposeEnum, name="purpose_enum"), nullable=False)

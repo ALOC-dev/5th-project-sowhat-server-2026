@@ -75,5 +75,5 @@ PERSONAL_ANALYSIS_PROMPT = """
 지역: {region}
 직업: {job}
 관심사: {interest}
-뉴스 소비 목적: {news_purpose}
+뉴스 소비 목적: {purpose}
 """.strip()
