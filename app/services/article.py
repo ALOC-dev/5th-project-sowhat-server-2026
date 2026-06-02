@@ -11,8 +11,8 @@ from app.exceptions import (
 )
 
 from app.services.llm_service import (
-    generate_common_analysis_with_groq,
-    generate_personal_analysis_with_groq,
+    generate_common_analysis,
+    generate_personal_analysis,
 )
 
 
@@ -52,7 +52,7 @@ async def get_common_analysis(db, article_id):
             "category": article.category or "미분류",
         }
 
-    result = await generate_common_analysis_with_groq(article_data)
+    result = await generate_common_analysis(article_data)
     common_crud.create_analysis(
         {"article_id": article_id, **result}
     )  # 생성된 공통 해설을 DB에 저장
@@ -96,6 +96,7 @@ async def get_personal_analysis(db, article_id, user_id):
             "region": user["region"],
             "job": user["job"],
             "interest": user["interest"],
+            "news_purpose": user["news_purpose"],
         }
     else:
         user_profile = {
@@ -104,9 +105,10 @@ async def get_personal_analysis(db, article_id, user_id):
             "region": user.region,
             "job": user.job,
             "interest": user.interest,
+            "news_purpose": user.news_purpose,
         }
 
-    result = await generate_personal_analysis_with_groq(article_data, user_profile)
+    result = await generate_personal_analysis(article_data, user_profile)
     personal_crud.create_analysis(
         {"article_id": article_id, "user_id": user_id, **result}
     )  # 생성된 개인 해설을 DB에 저장
