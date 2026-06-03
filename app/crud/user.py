@@ -10,6 +10,7 @@ MOCK_USERS = [
         "region": "SEOUL",
         "job": "STUDENT",
         "interest": "ECONOMY",
+        "purpose": "EMPLOYMENT",
     },
     {
         "user_id": 2,
@@ -18,13 +19,14 @@ MOCK_USERS = [
         "region": "INCHEON",
         "job": "OFFICE_WORKER",
         "interest": "POLITICS",
+        "purpose": "INVESTMENT",
     },
 ]
 
 
 def create_user(db, payload):
     next_id = max((u["user_id"] for u in MOCK_USERS), default=0) + 1
-    user_data = payload.copy()
+    user_data = payload.model_dump()
     user_data["user_id"] = next_id
     MOCK_USERS.append(user_data)
     return user_data
@@ -50,18 +52,15 @@ def get_user_by_id(db, user_id):
 
 
 def update_user(db, user_id, payload):
+    update_data = payload.model_dump(exclude_unset=True)
+
     for index, u in enumerate(MOCK_USERS):
         if u["user_id"] == user_id:
-            updated = {
-                "user_id": user_id,
-                "age": payload["age"],
-                "gender": payload["gender"],
-                "region": payload["region"],
-                "job": payload["job"],
-                "interest": payload["interest"],
-            }
-            MOCK_USERS[index] = updated
-            return updated
+
+            MOCK_USERS[index].update(update_data)
+
+            return MOCK_USERS[index]
+
     return None
 
     # db_user = db.query(UserInfo).filter(UserInfo.user_id == user_id).first()
