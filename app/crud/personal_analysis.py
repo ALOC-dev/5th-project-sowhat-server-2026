@@ -3,9 +3,9 @@ MOCK_ANALYSES = []
 
 
 def create_analysis(payload):
-    next_id = max((a["personal_analysis_id"] for a in MOCK_ANALYSES), default=0) + 1
+    next_id = max((a["id"] for a in MOCK_ANALYSES), default=0) + 1
     analysis_data = payload.copy()
-    analysis_data["personal_analysis_id"] = next_id
+    analysis_data["id"] = next_id
     MOCK_ANALYSES.append(analysis_data)
     return analysis_data
 

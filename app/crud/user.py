@@ -1,61 +1,63 @@
-# from app.models.user_info import UserInfo
+# from app.models.user import User
 
 # from app.models.enums import GenderEnum, RegionEnum, JobEnum, CategoryEnum
 
 MOCK_USERS = [
     {
-        "user_id": 1,
+        "id": 1,
         "age": 20,
         "gender": "MALE",
         "region": "SEOUL",
         "job": "STUDENT",
         "interest": "ECONOMY",
         "purpose": "EMPLOYMENT",
+        "extra_information": "",
     },
     {
-        "user_id": 2,
+        "id": 2,
         "age": 25,
         "gender": "FEMALE",
         "region": "INCHEON",
         "job": "OFFICE_WORKER",
         "interest": "POLITICS",
         "purpose": "INVESTMENT",
+        "extra_information": "",
     },
 ]
 
 
 def create_user(db, payload):
-    next_id = max((u["user_id"] for u in MOCK_USERS), default=0) + 1
+    next_id = max((u["id"] for u in MOCK_USERS), default=0) + 1
     user_data = payload.model_dump()
-    user_data["user_id"] = next_id
+    user_data["id"] = next_id
     MOCK_USERS.append(user_data)
     return user_data
 
-    # new_user = UserInfo(**payload.model_dump())
+    # new_user = User(**payload.model_dump())
     # db.add(new_user)
     # db.commit()
     # db.refresh(new_user)
     # return new_user
 
 
-def get_user_by_id(db, user_id):
+def get_user_by_id(db, id):
     for u in MOCK_USERS:
-        if u["user_id"] == user_id:
+        if u["id"] == id:
             return u
     return None
 
-    # db_user = db.query(UserInfo).filter(UserInfo.user_id == user_id).first()
+    # db_user = db.query(User).filter(User.id == id).first()
 
     # if not db_user:
     #     return None
     # return db_user
 
 
-def update_user(db, user_id, payload):
+def update_user(db, id, payload):
     update_data = payload.model_dump(exclude_unset=True)
 
     for index, u in enumerate(MOCK_USERS):
-        if u["user_id"] == user_id:
+        if u["id"] == id:
 
             MOCK_USERS[index].update(update_data)
 
@@ -63,7 +65,7 @@ def update_user(db, user_id, payload):
 
     return None
 
-    # db_user = db.query(UserInfo).filter(UserInfo.user_id == user_id).first()
+    # db_user = db.query(User).filter(User.id == id).first()
     # if not db_user:
     #     return None
 

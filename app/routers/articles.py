@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 
-from app.schemas.article import ArticleResponse, ArticleDetailResponse
+from app.schemas.article import ArticlePreviewResponse, ArticleDetailResponse
 from app.schemas.personal_analysis import PersonalAnalysis
 
 import app.services.article as service
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/articles", tags=["articles"])
 # ── GET /articles ─────────────────────────────────────────
 
 
-@router.get("", response_model=list[ArticleResponse])
+@router.get("", response_model=list[ArticlePreviewResponse])
 def list_articles(
     db: Session = Depends(get_db),
 ):
@@ -29,8 +29,8 @@ def list_articles(
 
 @router.get("/analysis", response_model=PersonalAnalysis)
 async def get_analysis(
-    article_id: int = Query(...),
-    user_id: int = Query(...),
+    article_id: int = Query(alias="article-id"),
+    user_id: int = Query(alias="user-id"),
     db: Session = Depends(get_db),
 ):
     try:
