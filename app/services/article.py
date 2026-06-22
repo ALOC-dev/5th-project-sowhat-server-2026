@@ -5,7 +5,7 @@ import app.crud.common_analysis as common_crud
 import app.crud.personal_analysis as personal_crud
 import app.crud.user as user_crud
 
-from app.exceptions import (
+from app.exceptions.domain import (
     ArticleNotFoundError,
     UserNotFoundError,
 )
@@ -28,7 +28,7 @@ def get_all_articles(db):
 
 async def get_common_analysis(db, article_id):
     article = article_crud.get_article_by_id(article_id)
-    if not article:
+    if article is None:
         raise ArticleNotFoundError()
 
     article_detail = deepcopy(article)  # 기사 상세정보 복사 (공통해설 추가하기 위함)
@@ -63,11 +63,11 @@ async def get_common_analysis(db, article_id):
 
 async def get_personal_analysis(db, article_id, user_id):
     article = article_crud.get_article_by_id(article_id)
-    if not article:
+    if article is None:
         raise ArticleNotFoundError()
 
     user = user_crud.get_user_by_id(db, user_id)
-    if not user:
+    if user is None:
         raise UserNotFoundError()
 
     # DB에 개인해설이 존재하는지 확인

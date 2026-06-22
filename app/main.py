@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import articles, users
 from app.services.schedule import run_yonhap_crawling
+from app.core.exceptions import register_exception_handlers
 
 # API 요청이 허용된 다른 origin 목록
 CORS_ALLOW_ORIGINS = [
@@ -36,6 +37,9 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(articles.router)
 app.include_router(users.router)
+
+# 예외 처리 핸들러 등록
+register_exception_handlers(app)
 
 
 @app.get("/health")
