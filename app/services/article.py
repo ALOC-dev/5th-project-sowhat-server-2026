@@ -29,7 +29,7 @@ def get_all_articles(db):
 async def get_common_analysis(db, article_id):
     article = article_crud.get_article_by_id(article_id)
     if not article:
-        raise ArticleNotFoundError
+        raise ArticleNotFoundError()
 
     article_detail = deepcopy(article)  # 기사 상세정보 복사 (공통해설 추가하기 위함)
 
@@ -64,11 +64,11 @@ async def get_common_analysis(db, article_id):
 async def get_personal_analysis(db, article_id, user_id):
     article = article_crud.get_article_by_id(article_id)
     if not article:
-        raise ArticleNotFoundError
+        raise ArticleNotFoundError()
 
     user = user_crud.get_user_by_id(db, user_id)
     if not user:
-        raise UserNotFoundError
+        raise UserNotFoundError()
 
     # DB에 개인해설이 존재하는지 확인
     personal = personal_crud.get_analysis_by_article_and_user(article_id, user_id)
