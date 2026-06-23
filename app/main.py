@@ -1,9 +1,9 @@
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import articles, users
-from app.services.schedule import run_yonhap_crawling
+from app.services.schedule import run_yonhap_crawling_periodically
 from app.core.exceptions import register_exception_handlers
 
 # API 요청이 허용된 다른 origin 목록
@@ -16,12 +16,14 @@ CORS_ALLOW_ORIGINS = [
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 서버 시작 시 실행
-    crawling_task = asyncio.create_task(run_yonhap_crawling())
+    crawling_task = asyncio.create_task(run_yonhap_crawling_periodically(60))
 
     yield  # 여기서부터 서버 시작
 
     # 서버 종료 시 실행
     crawling_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await crawling_task
 
 
 app = FastAPI(lifespan=lifespan)  # 앱 생성

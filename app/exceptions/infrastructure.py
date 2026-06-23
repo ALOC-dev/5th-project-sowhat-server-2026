@@ -11,7 +11,7 @@ class DatabaseError(InfrastructureError):
 class ExternalAPIError(InfrastructureError):
     """Raised when external API interactions fail."""
 
-    default_message = "LLM API 연결 실패"
+    default_message = "외부 API 호출 실패"
     status_code = 502
 
 

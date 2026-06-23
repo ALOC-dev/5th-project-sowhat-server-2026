@@ -10,20 +10,23 @@ import asyncio
 import aiohttp
 import feedparser
 from bs4 import BeautifulSoup
+import time
+from datetime import datetime
 
 import app.crud.article as article_crud
+from app.exceptions.infrastructure import ExternalAPIError
 
 # 수집 대상 RSS 피드 목록
 YONHAP_RSS: dict[str, str] = {
-    "연합뉴스(전체)":    "https://www.yna.co.kr/rss/news.xml",
+    # "연합뉴스(전체)": "https://www.yna.co.kr/rss/news.xml",
     "연합뉴스(산업/IT)": "https://www.yna.co.kr/rss/industry.xml",
-    "연합뉴스(정치)":    "https://www.yna.co.kr/rss/politics.xml",
-    "연합뉴스(경제)":    "https://www.yna.co.kr/rss/economy.xml",
-    "연합뉴스(사회)":    "https://www.yna.co.kr/rss/society.xml",
-    "연합뉴스(세계)":    "https://www.yna.co.kr/rss/international.xml",
-    "연합뉴스(문화)":    "https://www.yna.co.kr/rss/culture.xml",
-    "연합뉴스(스포츠)":  "https://www.yna.co.kr/rss/sports.xml",
-    "연합뉴스(연예)":    "https://www.yna.co.kr/rss/entertainment.xml"
+    "연합뉴스(정치)": "https://www.yna.co.kr/rss/politics.xml",
+    "연합뉴스(경제)": "https://www.yna.co.kr/rss/economy.xml",
+    "연합뉴스(사회)": "https://www.yna.co.kr/rss/society.xml",
+    "연합뉴스(세계)": "https://www.yna.co.kr/rss/international.xml",
+    # "연합뉴스(문화)": "https://www.yna.co.kr/rss/culture.xml",
+    # "연합뉴스(스포츠)": "https://www.yna.co.kr/rss/sports.xml",
+    # "연합뉴스(연예)": "https://www.yna.co.kr/rss/entertainment.xml",
 }
 
 
@@ -55,9 +58,12 @@ REMOVE_SELECTORS: list[str] = [
 ]
 
 
+# 날짜 변환 함수
+def formatDate(st_time: time.struct_time):
+    return datetime(*st_time[:6])
+
+
 # paragraph crawler
-
-
 async def fetch_yonhap_body(
     session: aiohttp.ClientSession,
     article_url: str,
@@ -105,13 +111,12 @@ async def fetch_yonhap_body(
         return "\n".join(paragraphs)
 
     except Exception as exc:
-        print(f"[ERROR] 본문 크롤링 예외: {exc} / URL: {article_url}")
-        return ""
+        raise ExternalAPIError(
+            message=f"[ERROR] 본문 크롤링 예외: {exc} / URL: {article_url}"
+        )
 
 
 # RSS Process
-
-
 async def fetch_rss_entries(rss_url: str) -> list:
     """
     RSS URL을 비동기로 요청하고 feedparser로 파싱한 entry 목록을 반환한다.
@@ -143,8 +148,7 @@ async def fetch_rss_entries(rss_url: str) -> list:
         return feed.entries
 
     except Exception as exc:
-        print(f"[ERROR] RSS 요청 예외: {exc}")
-        return []
+        raise ExternalAPIError(message=f"[ERROR] RSS 요청 예외: {exc}")
 
 
 async def process_yonhap_rss(
@@ -182,18 +186,22 @@ async def process_yonhap_rss(
     async with aiohttp.ClientSession() as session:
         for entry in target_entries:
             title = entry.get("title", "")
-            link = entry.get("link", "")
+            source_url = entry.get("link", "")
+            published_at = formatDate(entry.get("published_parsed", ""))
+            reporter = entry.get("author", "")
 
             print("-" * 60)
             print(f"[기사] {title}")
-            print(f"[URL]  {link}")
+            print(f"[URL]  {source_url}")
+            print(f"[발행일자]  {published_at}")
+            print(f"[기자]  {reporter}")
 
             # DB 중복 검사 (DB 연결 후 주석 해제)
             # if article_crud.get_article_by_link(db, link=link):
             #     print("[SKIP] 이미 저장된 기사")
             #     continue
 
-            content = await fetch_yonhap_body(session, link)
+            content = await fetch_yonhap_body(session, source_url)
 
             if content:
                 print(f"[OK]   본문 {len(content)}자 수집 완료")
@@ -202,9 +210,11 @@ async def process_yonhap_rss(
                 results.append(
                     {
                         "title": title,
-                        "link": link,
+                        "source_url": source_url,
+                        "published_at": published_at,
+                        "publisher": "연합뉴스",
+                        "reporter": reporter,
                         "content": content,
-                        "media": "연합뉴스",
                     }
                 )
 
@@ -223,8 +233,6 @@ async def process_yonhap_rss(
 
 
 # 전체 실행기
-
-
 async def run_yonhap_crawling() -> dict[str, list[dict]]:
     """
     YONHAP_RSS에 정의된 모든 카테고리를 병렬로 수집한다.
@@ -241,6 +249,27 @@ async def run_yonhap_crawling() -> dict[str, list[dict]]:
     results = await asyncio.gather(*tasks.values())
 
     return dict(zip(tasks.keys(), results))
+
+
+async def run_yonhap_crawling_periodically(interval_seconds: int = 60) -> None:
+    """
+    서버가 실행되는 동안 연합뉴스 RSS 수집을 주기적으로 반복한다.
+
+    이전 수집이 끝난 뒤 남은 시간만큼 대기하므로
+    수집 시간이 60초보다 길어져도 다음 수집 작업과 겹쳐 실행되지 않는다.
+    """
+    while True:
+        started_at = time.monotonic()
+
+        try:
+            await run_yonhap_crawling()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            print(f"[ERROR] 주기 RSS 수집 실패: {exc}")
+
+        elapsed = time.monotonic() - started_at
+        await asyncio.sleep(max(0, interval_seconds - elapsed))
 
 
 # 직접 실행
