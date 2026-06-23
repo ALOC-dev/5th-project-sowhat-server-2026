@@ -4,9 +4,11 @@ MOCK_ARTICLES = []
 
 def create_article(payload):
     next_id = max((a["id"] for a in MOCK_ARTICLES), default=0) + 1
+
     new_article = payload if type(payload) is dict else payload.model_dump()
     new_article["id"] = next_id
     new_article["category"] = "미분류"  # 임시
+
     MOCK_ARTICLES.append(new_article)
     return new_article
 
@@ -24,5 +26,11 @@ def get_article_by_id(id):
     for a in MOCK_ARTICLES:
         if a["id"] == id:
             return a
-
     return None
+
+
+# def get_article_by_source_url(db, source_url):
+#     for a in MOCK_ARTICLES:
+#         if a["source_url"] == source_url:
+#             return a
+#     return None

@@ -63,7 +63,7 @@ def formatDate(st_time: time.struct_time):
     return datetime(*st_time[:6])
 
 
-# paragraph crawler
+# 본문 크롤링 (HTML 파싱)
 async def fetch_yonhap_body(
     session: aiohttp.ClientSession,
     article_url: str,
@@ -116,7 +116,7 @@ async def fetch_yonhap_body(
         )
 
 
-# RSS Process
+# RSS 엔트리 파싱
 async def fetch_rss_entries(rss_url: str) -> list:
     """
     RSS URL을 비동기로 요청하고 feedparser로 파싱한 entry 목록을 반환한다.
@@ -151,6 +151,7 @@ async def fetch_rss_entries(rss_url: str) -> list:
         raise ExternalAPIError(message=f"[ERROR] RSS 요청 예외: {exc}")
 
 
+# 한 카테고리의 RSS 피드 처리
 async def process_yonhap_rss(
     category_name: str,
     rss_url: str,
@@ -197,7 +198,7 @@ async def process_yonhap_rss(
             print(f"[기자]  {reporter}")
 
             # DB 중복 검사 (DB 연결 후 주석 해제)
-            # if article_crud.get_article_by_link(db, link=link):
+            # if article_crud.get_article_by_source_url(db, source_url=source_url):
             #     print("[SKIP] 이미 저장된 기사")
             #     continue
 
@@ -232,7 +233,7 @@ async def process_yonhap_rss(
     return results
 
 
-# 전체 실행기
+# 모든 카테고리에 대해 RSS 피드 수집
 async def run_yonhap_crawling() -> dict[str, list[dict]]:
     """
     YONHAP_RSS에 정의된 모든 카테고리를 병렬로 수집한다.
@@ -251,6 +252,7 @@ async def run_yonhap_crawling() -> dict[str, list[dict]]:
     return dict(zip(tasks.keys(), results))
 
 
+# 주기적 피드 수집 실행기
 async def run_yonhap_crawling_periodically(interval_seconds: int = 60) -> None:
     """
     서버가 실행되는 동안 연합뉴스 RSS 수집을 주기적으로 반복한다.
@@ -273,6 +275,5 @@ async def run_yonhap_crawling_periodically(interval_seconds: int = 60) -> None:
 
 
 # 직접 실행
-
 # if __name__ == "__main__":
 #     asyncio.run(run_yonhap_crawling())
