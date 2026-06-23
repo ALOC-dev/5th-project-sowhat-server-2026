@@ -14,7 +14,7 @@ import time
 from datetime import datetime
 
 import app.crud.article as article_crud
-from app.exceptions.infrastructure import ExternalAPIError
+from app.exceptions.infrastructure import DatabaseError, ExternalAPIError
 
 # 수집 대상 RSS 피드 목록
 YONHAP_RSS: dict[str, str] = {
@@ -81,39 +81,36 @@ async def fetch_yonhap_body(
     try:
         async with session.get(article_url, headers=REQUEST_HEADERS) as response:
 
-            # 정상 응답이 아니면 빠르게 종료
             if response.status != 200:
                 print(f"[HTTP {response.status}] 접근 실패: {article_url}")
                 return ""
 
             html = await response.text()
+    except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+        print(f"[ERROR] 본문 요청 실패: {exc} / URL: {article_url}")
+        return ""
 
-        # --- HTML 파싱 ---
-        soup = BeautifulSoup(html, "html.parser")
+    # --- HTML 파싱 ---
+    soup = BeautifulSoup(html, "html.parser")
 
-        # 우선순위 순으로 본문 selector 시도
-        body_tag = None
-        for selector in YONHAP_BODY_SELECTORS:
-            body_tag = soup.select_one(selector)
-            if body_tag:
-                break
+    # 우선순위 순으로 본문 selector 시도
+    body_tag = None
+    for selector in YONHAP_BODY_SELECTORS:
+        body_tag = soup.select_one(selector)
+        if body_tag:
+            break
 
-        if body_tag is None:
-            print(f"[WARN] 본문 selector 매칭 실패: {article_url}")
-            return ""
+    if body_tag is None:
+        print(f"[WARN] 본문 selector 매칭 실패: {article_url}")
+        return ""
 
-        # 광고·스크립트 등 불필요한 태그 제거
-        for tag in body_tag.select(", ".join(REMOVE_SELECTORS)):
-            tag.decompose()
+    # 광고·스크립트 등 불필요한 태그 제거
+    for tag in body_tag.select(", ".join(REMOVE_SELECTORS)):
+        tag.decompose()
 
-        # <p> 태그 단위로 텍스트 추출 후 줄바꿈으로 합치기
-        paragraphs = [p.get_text(strip=True) for p in body_tag.select("p")]
-        return "\n".join(paragraphs)
-
-    except Exception as exc:
-        raise ExternalAPIError(
-            message=f"[ERROR] 본문 크롤링 예외: {exc} / URL: {article_url}"
-        )
+    # <p> 태그 단위로 텍스트 추출 후 줄바꿈으로 합치기
+    paragraphs = [p.get_text(strip=True) for p in body_tag.select("p")]
+    return "\n".join(paragraphs)
 
 
 # RSS 엔트리 파싱
@@ -140,15 +137,17 @@ async def fetch_rss_entries(rss_url: str) -> list:
                     return []
                 raw = await response.read()  # bytes 그대로 받기
 
-        feed = feedparser.parse(raw)
-
-        if feed.bozo:
-            print(f"[WARN] RSS 파싱 경고: {feed.get('bozo_exception')}")
-
-        return feed.entries
-
     except Exception as exc:
-        raise ExternalAPIError(message=f"[ERROR] RSS 요청 예외: {exc}")
+        # print(f"[ERROR] RSS 요청 실패: {exc} / URL: {rss_url}")
+        # return []
+        raise ExternalAPIError(f"RSS 요청 실패: {exc} / URL: {rss_url}")
+
+    feed = feedparser.parse(raw)
+
+    if feed.bozo:
+        print(f"[WARN] RSS 파싱 경고: {feed.get('bozo_exception')}")
+
+    return feed.entries
 
 
 # 한 카테고리의 RSS 피드 처리
@@ -167,15 +166,25 @@ async def process_yonhap_rss(
 
     Returns:
         수집된 기사 딕셔너리 목록
-        [{"title": ..., "link": ..., "content": ..., "media": "연합뉴스"}, ...]
+        [
+            {
+                "title": ...,
+                "source_url": ...,
+                "published_at": ...,
+                "publisher": "연합뉴스",
+                "reporter": ...,
+                "content": ...,
+            },
+        ]
     """
+
     print("=" * 60)
-    print(f"[START] {category_name} RSS 수집 시작")
+    print(f"[START] {category_name}: RSS 수집 시작")
 
     entries = await fetch_rss_entries(rss_url)
 
     if not entries:
-        print(f"[SKIP]  {category_name} - 수집된 기사 없음")
+        print(f"[SKIP]  {category_name}: 수집된 기사 없음")
         return []
 
     # max_articles가 None이면 전체, 숫자면 슬라이싱
@@ -218,18 +227,19 @@ async def process_yonhap_rss(
                         "content": content,
                     }
                 )
-
             else:
                 print("[FAIL] 본문 수집 실패")
 
             # 서버 부하 방지용 딜레이
             await asyncio.sleep(0.5)
 
-    print(f"[DONE]  {category_name} 수집 완료 - {len(results)}건")
+    try:
+        # DB에 기사 저장
+        article_crud.create_articles(results)
+    except Exception as exc:
+        raise DatabaseError(f"기사 정보 저장 실패: {exc}")
 
-    # DB에 기사 저장
-    article_crud.create_articles(results)
-
+    print(f"[DONE]  {category_name} 수집 완료: {len(results)}건")
     return results
 
 
@@ -247,7 +257,7 @@ async def run_yonhap_crawling() -> dict[str, list[dict]]:
     tasks = {name: process_yonhap_rss(name, url) for name, url in YONHAP_RSS.items()}
 
     # asyncio.gather로 모든 카테고리 병렬 실행
-    results = await asyncio.gather(*tasks.values())
+    results = await asyncio.gather(*tasks.values(), return_exceptions=True)
 
     return dict(zip(tasks.keys(), results))
 
@@ -264,7 +274,13 @@ async def run_yonhap_crawling_periodically(interval_seconds: int = 60) -> None:
         started_at = time.monotonic()
 
         try:
-            await run_yonhap_crawling()
+            results = await run_yonhap_crawling()
+
+            # 각 task별로 발생한 예외 출력하기
+            for name, res in results.items():
+                if isinstance(res, Exception):
+                    print(f"[ERROR] {name}: {res}")
+
         except asyncio.CancelledError:
             raise
         except Exception as exc:
