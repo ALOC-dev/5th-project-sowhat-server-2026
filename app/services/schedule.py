@@ -268,7 +268,10 @@ async def run_yonhap_crawling_periodically(interval_seconds: int = 60) -> None:
     서버가 실행되는 동안 연합뉴스 RSS 수집을 주기적으로 반복한다.
 
     이전 수집이 끝난 뒤 남은 시간만큼 대기하므로
-    수집 시간이 60초보다 길어져도 다음 수집 작업과 겹쳐 실행되지 않는다.
+    수집 시간이 interval_seconds보다 길어져도 다음 수집 작업과 겹쳐 실행되지 않는다.
+
+    Args:
+        interval_seconds: 뉴스 수집 주기 (원활한 테스트를 위해 기본값은 60초로 설정함)
     """
     while True:
         started_at = time.monotonic()
