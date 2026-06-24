@@ -1,39 +1,23 @@
+from datetime import datetime
 from pydantic import BaseModel
 
-# class ArticleResponse(BaseModel):
-#     article_id: int
-#     title: str
-#     date: str
-#     content: str
-#     category: str
 
-
-# 임시
-class ArticleResponse(BaseModel):
-    article_id: int
+class ArticlePreviewResponse(BaseModel):
+    id: int
     title: str
-    link: str
+    published_at: datetime
+    publisher: str
     content: str
-    media: str
-
-
-# class ArticleDetailResponse(BaseModel):
-#     article_id: int
-#     title: str
-#     date: str
-#     content: str
-#     category: str
-#     summary: str
-#     keyword: str
-
-
-# 임시
-class ArticleDetailResponse(BaseModel):
-    article_id: int
-    title: str
-    link: str
-    content: str
-    media: str
     category: str
+
+
+class ArticleDetailResponse(BaseModel):
+    id: int
+    title: str
+    source_url: str
+    published_at: datetime
+    publisher: str
+    reporter: str
+    content: str
     summary: str
-    keyword: str
+    category: str

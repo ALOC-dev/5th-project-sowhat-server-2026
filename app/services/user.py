@@ -1,13 +1,62 @@
+from enum import Enum
+
 import app.crud.user as crud
+from app.exceptions.domain import UserNotFoundError, InvalidArgumentError
+
+USER_ENUM_FIELD_NAMES = ("gender", "region", "job", "interest", "purpose")
 
 
-def create_profile(db, payload):
-    return crud.create_user(db, payload)
+def _validate_natural_number(value, field_name):
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise InvalidArgumentError(f"{field_name}은(는) 자연수여야 합니다.")
 
 
-def get_profile(db, user_id):
-    return crud.get_user_by_id(db, user_id)
+def _validate_enum_value(value, enum_class, field_name):
+    if isinstance(value, enum_class):
+        return
+
+    if isinstance(value, str) and value in {item.value for item in enum_class}:
+        return
+
+    allowed_values = ", ".join(item.value for item in enum_class)
+    raise InvalidArgumentError(
+        f"{field_name}은(는) 다음 값 중 하나여야 합니다: {allowed_values}"
+    )
 
 
-def modify_profile(db, user_id, payload):
-    return crud.update_user(db, user_id, payload)
+def _get_payload_field_annotation(payload, field_name):
+    model_fields = getattr(payload.__class__, "model_fields", {})
+    field = model_fields.get(field_name)
+    return getattr(field, "annotation", None)
+
+
+def _validate_create_user_payload(payload):
+    _validate_natural_number(payload.age, "age")
+
+    for field_name in USER_ENUM_FIELD_NAMES:
+        enum_class = _get_payload_field_annotation(payload, field_name)
+        if not isinstance(enum_class, type) or not issubclass(enum_class, Enum):
+            continue
+
+        _validate_enum_value(getattr(payload, field_name), enum_class, field_name)
+
+
+def create_user(db, payload):
+    _validate_create_user_payload(payload)
+    user = crud.create_user(db, payload)
+    return user
+
+
+def get_user(db, user_id):
+    user = crud.get_user_by_id(db, user_id)
+    if user is None:
+        raise UserNotFoundError()
+    return user
+
+
+def modify_user(db, user_id, payload):
+    _validate_create_user_payload(payload)
+    user = crud.update_user(db, user_id, payload)
+    if user is None:
+        raise UserNotFoundError()
+    return user

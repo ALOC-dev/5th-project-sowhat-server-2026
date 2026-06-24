@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Enum, Integer
+from sqlalchemy import Column, DateTime, Enum, Integer, Text, func
 from app.db.database import Base
 
 from app.models.enums import (
@@ -10,13 +10,17 @@ from app.models.enums import (
 )
 
 
-class UserInfo(Base):
-    __tablename__ = "user_info"
+class User(Base):
+    __tablename__ = "user"
 
-    user_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     age = Column(Integer, nullable=False)
     gender = Column(Enum(GenderEnum, name="gender_enum"), nullable=False)
     region = Column(Enum(RegionEnum, name="region_enum"), nullable=False)
     job = Column(Enum(JobEnum, name="job_enum"), nullable=False)
     interest = Column(Enum(CategoryEnum, name="category_enum"), nullable=False)
     purpose = Column(Enum(PurposeEnum, name="purpose_enum"), nullable=False)
+    extra_information = Column(Text, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

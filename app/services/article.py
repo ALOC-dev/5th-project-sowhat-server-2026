@@ -1,11 +1,10 @@
 from copy import deepcopy
 
 import app.crud.article as article_crud
-import app.crud.common_analysis as common_crud
 import app.crud.personal_analysis as personal_crud
 import app.crud.user as user_crud
 
-from app.exceptions import (
+from app.exceptions.domain import (
     ArticleNotFoundError,
     UserNotFoundError,
 )
@@ -28,47 +27,44 @@ def get_all_articles(db):
 
 async def get_common_analysis(db, article_id):
     article = article_crud.get_article_by_id(article_id)
-    if not article:
-        raise ArticleNotFoundError
+    if article is None:
+        raise ArticleNotFoundError()
 
     article_detail = deepcopy(article)  # 기사 상세정보 복사 (공통해설 추가하기 위함)
 
-    # DB에 공통해설이 존재하는지 확인
-    common = common_crud.get_analysis_by_article(article_id)
-    if common:
-        article_detail.update(common)  # 기사 상세정보에 공통 해설 추가
+    # DB에 공통해설이 없으면 LLM API호출로 해설 생성하기
+    if article_detail["summary"] is None or article_detail["keyword"] is None:
+        if isinstance(article, dict):
+            article_data = {
+                "title": article["title"],
+                "content": article["content"],
+                "category": article["category"] or "미분류",
+            }
+        else:
+            article_data = {
+                "title": article.title,
+                "content": article.content,
+                "category": article.category or "미분류",
+            }
 
-    # 없으면 LLM API호출로 해설 생성하기
-    if isinstance(article, dict):
-        article_data = {
-            "title": article["title"],
-            "content": article["content"],
-            "category": article["category"] or "미분류",
-        }
-    else:
-        article_data = {
-            "title": article.title,
-            "content": article.content,
-            "category": article.category or "미분류",
-        }
+        result = await generate_common_analysis(article_data)
 
-    result = await generate_common_analysis(article_data)
-    common_crud.create_analysis(
-        {"article_id": article_id, **result}
-    )  # 생성된 공통 해설을 DB에 저장
+        article_detail.update(result)  # 기사 상세정보에 공통 해설 추가
+        article_crud.update_article_by_id(
+            article_id, article_detail
+        )  # 공통 해설 추가된 기사 상세정보를 DB에 저장
 
-    article_detail.update(result)  # 기사 상세정보에 공통 해설 추가
     return article_detail
 
 
 async def get_personal_analysis(db, article_id, user_id):
     article = article_crud.get_article_by_id(article_id)
-    if not article:
-        raise ArticleNotFoundError
+    if article is None:
+        raise ArticleNotFoundError()
 
     user = user_crud.get_user_by_id(db, user_id)
-    if not user:
-        raise UserNotFoundError
+    if user is None:
+        raise UserNotFoundError()
 
     # DB에 개인해설이 존재하는지 확인
     personal = personal_crud.get_analysis_by_article_and_user(article_id, user_id)
