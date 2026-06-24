@@ -34,3 +34,10 @@ def get_article_by_id(id):
 #         if a["source_url"] == source_url:
 #             return a
 #     return None
+
+
+def update_article_by_id(id, payload):
+    for a in MOCK_ARTICLES:
+        if a["id"] == id:
+            a.update(payload)
+            return a
