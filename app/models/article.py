@@ -11,7 +11,7 @@ class Article(Base):
     title = Column(String(255), nullable=False)
     source_url = Column(String(255), nullable=False)
     published_at = Column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        DateTime(timezone=True), nullable=False
     )
     publisher = Column(String(255), nullable=False)
     reporter = Column(String(255), nullable=False)
