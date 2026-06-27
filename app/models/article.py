@@ -17,6 +17,7 @@ class Article(Base):
     reporter = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
     summary = Column(Text, nullable=False)
+    keyword = Column(String(255), nullable=False)
     category = Column(Enum(CategoryEnum, name="category_enum"), nullable=False)
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
