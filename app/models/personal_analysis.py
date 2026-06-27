@@ -12,6 +12,6 @@ class PersonalAnalysis(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     article_id = Column(Integer, ForeignKey("article.id"), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("user_info.id"), nullable=False, index=True)
     effect = Column(Text, nullable=False)
     solution = Column(Text, nullable=False)
