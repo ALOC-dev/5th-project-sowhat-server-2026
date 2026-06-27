@@ -26,14 +26,11 @@ async def generate_common_analysis(article_data: dict):
 
     raw_text = raw_text.replace("```json", "").replace("```", "").strip()
 
-    print(raw_text)
-
     try:
         return json.loads(raw_text)
 
     except json.JSONDecodeError as exc:
         print(f"[JSON ERROR] {exc}")
-        print(raw_text)
 
         return {
             "summary": "해설 생성 실패",
@@ -68,14 +65,11 @@ async def generate_personal_analysis(
 
     raw_text = raw_text.replace("```json", "").replace("```", "").strip()
 
-    print(raw_text)
-
     try:
         return json.loads(raw_text)
 
     except json.JSONDecodeError as exc:
         print(f"[JSON ERROR] {exc}")
-        print(raw_text)
 
         return {
             "effect": "해설 생성 실패",

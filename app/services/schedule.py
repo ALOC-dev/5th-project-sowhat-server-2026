@@ -172,7 +172,12 @@ async def process_yonhap_rss(
             for entry in target_entries:
                 title = entry.get("title", "")
                 source_url = entry.get("link", "")
-                published_at = formatDate(entry.get("published_parsed", ""))
+                published_parsed = entry.get("published_parsed")
+                if not published_parsed:
+                    print("[SKIP] 발행일자 없음")
+                    continue
+
+                published_at = formatDate(published_parsed)
                 reporter = entry.get("author", "")
 
                 print("-" * 60)
@@ -191,7 +196,6 @@ async def process_yonhap_rss(
 
                 if content:
                     print(f"[OK]   본문 {len(content)}자 수집 완료")
-                    print(content[:200])
 
                     try:
                         analysis = await generate_common_analysis(
@@ -227,14 +231,12 @@ async def process_yonhap_rss(
 
                 await asyncio.sleep(0.5)
 
-        print(f"[DEBUG] 저장할 기사 수: {len(results)}")
         if results:
-            print(results[0])
-
-        if results:
+            print(f"[INFO]  {len(results)}건 기사 수집 완료, DB 저장 시도")
             article_crud.create_articles(db, results)
+        else:
+            print("[INFO]  저장할 신규 기사 없음")
 
-        print(f"[DONE]  {category_name} 수집 완료: {len(results)}건")
         return results
 
     except Exception as exc:

@@ -15,18 +15,14 @@ def create_article(db, payload):
 
 
 def create_articles(db, articles):
-    print(f"[DEBUG] create_articles 호출됨: {len(articles)}건")
     article_objects = [Article(**article) for article in articles]
 
     try:
-        print("[DEBUG] commit 시작")
         db.add_all(article_objects)
         db.commit()
-        print("[DEBUG] commit 성공")
         return article_objects
     except Exception as e:
         db.rollback()
-        print(f"[DEBUG] commit 실패: {e}")
         raise
 
 
