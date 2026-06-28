@@ -11,7 +11,7 @@ from app.models.enums import (
 
 
 class User(Base):
-    __tablename__ = "user_info"
+    __tablename__ = "user"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     age = Column(Integer, nullable=False)
