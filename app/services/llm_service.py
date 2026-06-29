@@ -1,6 +1,7 @@
 import json
 
-from app.services.llm.groq_client import create_json_completion
+# from app.services.llm.groq_client import create_json_completion
+from app.services.llm.openai_client import create_json_completion
 from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
     PERSONAL_ANALYSIS_PROMPT,
@@ -15,14 +16,34 @@ async def generate_common_analysis(article_data: dict):
         content=article_data["content"],
     )
 
+    ### Groq
+    # response = await groq_client.create_json_completion(
+    #     [
+    #         {"role": "system", "content": SYSTEM_JSON_PROMPT},
+    #         {"role": "user", "content": prompt},
+    #     ]
+    # )
+    # raw_text = response.choices[0].message.content.strip()
+
+    ### OpenAI
     response = await create_json_completion(
         [
-            {"role": "system", "content": SYSTEM_JSON_PROMPT},
-            {"role": "user", "content": prompt},
+            {
+                "role": "system",
+                "content": [
+                    {"type": "input_text", "text": SYSTEM_JSON_PROMPT},
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": prompt},
+                ],
+            },
         ]
     )
 
-    raw_text = response.choices[0].message.content.strip()
+    raw_text = response.output_text
 
     raw_text = raw_text.replace("```json", "").replace("```", "").strip()
 
@@ -54,14 +75,34 @@ async def generate_personal_analysis(
         purpose=user_profile["purpose"],
     )
 
+    ### Groq
+    # response = await create_json_completion(
+    #     [
+    #         {"role": "system", "content": SYSTEM_JSON_PROMPT},
+    #         {"role": "user", "content": prompt},
+    #     ]
+    # )
+    # raw_text = response.choices[0].message.content.strip()
+
+    ### OpenAI
     response = await create_json_completion(
         [
-            {"role": "system", "content": SYSTEM_JSON_PROMPT},
-            {"role": "user", "content": prompt},
-        ]
+            {
+                "role": "system",
+                "content": [
+                    {"type": "input_text", "text": SYSTEM_JSON_PROMPT},
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": prompt},
+                ],
+            },
+        ],
     )
 
-    raw_text = response.choices[0].message.content.strip()
+    raw_text = response.output_text
 
     raw_text = raw_text.replace("```json", "").replace("```", "").strip()
 
