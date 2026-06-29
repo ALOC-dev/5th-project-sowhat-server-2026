@@ -11,6 +11,7 @@ class Settings:
     GROQ_MODEL = os.getenv(key="GROQ_MODEL", default="llama-3.1-8b-instant")
     OPENAI_API_KEY = os.getenv(key="OPENAI_API_KEY")
     OPENAI_MODEL = os.getenv(key="OPENAI_MODEL", default="gpt-5.5")
+    DATABASE_URL = os.getenv(key="DATABASE_URL")
 
 
 settings = Settings()
