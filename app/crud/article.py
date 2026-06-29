@@ -1,43 +1,68 @@
-# 시작할 때는 비어있는 리스트 준비, 기사 크롤링 후 저장하기
-MOCK_ARTICLES = []
+from app.models.article import Article
 
 
-def create_article(payload):
-    next_id = max((a["id"] for a in MOCK_ARTICLES), default=0) + 1
+def create_article(db, payload):
+    article = Article(**payload)
 
-    new_article = payload if type(payload) is dict else payload.model_dump()
-    new_article["id"] = next_id
-    new_article["category"] = "미분류"  # 임시
-
-    MOCK_ARTICLES.append(new_article)
-    return new_article
-
-
-def create_articles(articles):
-    for article in articles:
-        create_article(article)
+    try:
+        db.add(article)
+        db.commit()
+        db.refresh(article)
+        return article
+    except Exception:
+        db.rollback()
+        raise
 
 
-def get_all_articles():
-    return MOCK_ARTICLES
+def create_articles(db, articles):
+    article_objects = [Article(**article) for article in articles]
+
+    try:
+        db.add_all(article_objects)
+        db.commit()
+        return article_objects
+    except Exception as e:
+        db.rollback()
+        raise
 
 
-def get_article_by_id(id):
-    for a in MOCK_ARTICLES:
-        if a["id"] == id:
-            return a
-    return None
+def get_all_articles(db):
+    return db.query(Article).all()
 
 
-# def get_article_by_source_url(db, source_url):
-#     for a in MOCK_ARTICLES:
-#         if a["source_url"] == source_url:
-#             return a
-#     return None
+def get_article_by_id(db, article_id):
+    return (
+        db.query(Article)
+        .filter(Article.id == article_id)
+        .first()
+    )
 
 
-def update_article_by_id(id, payload):
-    for a in MOCK_ARTICLES:
-        if a["id"] == id:
-            a.update(payload)
-            return a
+def get_article_by_source_url(db, source_url):
+    return (
+        db.query(Article)
+        .filter(Article.source_url == source_url)
+        .first()
+    )
+
+
+def update_article_by_id(db, article_id, payload):
+    article = (
+        db.query(Article)
+        .filter(Article.id == article_id)
+        .first()
+    )
+
+    if article is None:
+        return None
+
+    for key, value in payload.items():
+        setattr(article, key, value)
+
+    try:
+        db.commit()
+        db.refresh(article)
+        return article
+    except Exception:
+        db.rollback()
+        raise

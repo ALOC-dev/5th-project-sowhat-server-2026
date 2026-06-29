@@ -15,11 +15,11 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     age = Column(Integer, nullable=False)
-    gender = Column(Enum(GenderEnum, name="gender_enum"), nullable=False)
-    region = Column(Enum(RegionEnum, name="region_enum"), nullable=False)
-    job = Column(Enum(JobEnum, name="job_enum"), nullable=False)
-    interest = Column(Enum(CategoryEnum, name="category_enum"), nullable=False)
-    purpose = Column(Enum(PurposeEnum, name="purpose_enum"), nullable=False)
+    gender = Column(Enum(GenderEnum, name="gender_enum"), nullable=True)
+    region = Column(Enum(RegionEnum, name="region_enum"), nullable=True)
+    job = Column(Enum(JobEnum, name="job_enum"), nullable=True)
+    interest = Column(Enum(CategoryEnum, name="category_enum"), nullable=True)
+    purpose = Column(Enum(PurposeEnum, name="purpose_enum"), nullable=True)
     extra_information = Column(Text, nullable=True)
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

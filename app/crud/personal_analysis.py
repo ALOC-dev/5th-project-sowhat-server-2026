@@ -1,17 +1,25 @@
-# 시작할 때는 비어있는 리스트 준비, 기사 크롤링->LLM 호출 후 저장하기
-MOCK_ANALYSES = []
+from app.models.personal_analysis import PersonalAnalysis
 
 
-def create_analysis(payload):
-    next_id = max((a["id"] for a in MOCK_ANALYSES), default=0) + 1
-    analysis_data = payload.copy()
-    analysis_data["id"] = next_id
-    MOCK_ANALYSES.append(analysis_data)
-    return analysis_data
+def create_analysis(db, payload):
+    analysis = PersonalAnalysis(**payload)
+
+    try:
+        db.add(analysis)
+        db.commit()
+        db.refresh(analysis)
+        return analysis
+    except Exception:
+        db.rollback()
+        raise
 
 
-def get_analysis_by_article_and_user(article_id, user_id):
-    for a in MOCK_ANALYSES:
-        if a["article_id"] == article_id and a["user_id"] == user_id:
-            return {"effect": a["effect"], "solution": a["solution"]}
-    return None
+def get_analysis_by_article_and_user(db, article_id, user_id):
+    return (
+        db.query(PersonalAnalysis)
+        .filter(
+            PersonalAnalysis.article_id == article_id,
+            PersonalAnalysis.user_id == user_id,
+        )
+        .first()
+    )

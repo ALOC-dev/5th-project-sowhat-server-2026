@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 import app.crud.article as article_crud
 import app.crud.personal_analysis as personal_crud
 import app.crud.user as user_crud
@@ -16,97 +14,91 @@ from app.services.llm_service import (
 
 
 def get_all_articles(db):
-    articles = deepcopy(article_crud.get_all_articles())
+    articles = article_crud.get_all_articles(db)
 
-    for a in articles:
-        if len(a["content"]) > 25:
-            a["content"] = a["content"][:25] + "..."  # 기사 내용 25자까지만 자르기
+    for article in articles:
+        if len(article.content) > 25:
+            article.content = article.content[:25] + "..."
 
     return articles
 
 
 async def get_common_analysis(db, article_id):
-    article = article_crud.get_article_by_id(article_id)
+    article = article_crud.get_article_by_id(db, article_id)
+
     if article is None:
         raise ArticleNotFoundError()
 
-    article_detail = deepcopy(article)  # 기사 상세정보 복사 (공통해설 추가하기 위함)
-
-    # DB에 공통해설이 없으면 LLM API호출로 해설 생성하기
-    if article_detail["summary"] is None or article_detail["keyword"] is None:
-        if isinstance(article, dict):
-            article_data = {
-                "title": article["title"],
-                "content": article["content"],
-                "category": article["category"] or "미분류",
-            }
-        else:
-            article_data = {
-                "title": article.title,
-                "content": article.content,
-                "category": article.category or "미분류",
-            }
+    # DB에 공통해설이 없으면 LLM API 호출
+    if article.summary is None or article.keyword is None:
+        article_data = {
+            "title": article.title,
+            "content": article.content,
+            "category": article.category,
+        }
 
         result = await generate_common_analysis(article_data)
 
-        article_detail.update(result)  # 기사 상세정보에 공통 해설 추가
         article_crud.update_article_by_id(
-            article_id, article_detail
-        )  # 공통 해설 추가된 기사 상세정보를 DB에 저장
+            db,
+            article_id,
+            result,
+        )
 
-    return article_detail
+        # 최신 상태 다시 조회
+        article = article_crud.get_article_by_id(db, article_id)
+
+    return article
 
 
 async def get_personal_analysis(db, article_id, user_id):
-    article = article_crud.get_article_by_id(article_id)
+    article = article_crud.get_article_by_id(db, article_id)
+
     if article is None:
         raise ArticleNotFoundError()
 
     user = user_crud.get_user_by_id(db, user_id)
+
     if user is None:
         raise UserNotFoundError()
 
     # DB에 개인해설이 존재하는지 확인
-    personal = personal_crud.get_analysis_by_article_and_user(article_id, user_id)
+    personal = personal_crud.get_analysis_by_article_and_user(
+        db,
+        article_id,
+        user_id,
+    )
+
     if personal:
         return personal
 
-    # 없으면 LLM API호출로 해설 생성하기
-    if isinstance(article, dict):
-        article_data = {
-            "title": article["title"],
-            "content": article["content"],
-            "category": article["category"] or "미분류",
-        }
-    else:
-        article_data = {
-            "title": article.title,
-            "content": article.content,
-            "category": article.category or "미분류",
-        }
+    article_data = {
+        "title": article.title,
+        "content": article.content,
+        "category": article.category,
+    }
 
-    if isinstance(user, dict):
-        user_profile = {
-            "age": user["age"],
-            "gender": user["gender"],
-            "region": user["region"],
-            "job": user["job"],
-            "interest": user["interest"],
-            "purpose": user["purpose"],
-        }
-    else:
-        user_profile = {
-            "age": user.age,
-            "gender": user.gender,
-            "region": user.region,
-            "job": user.job,
-            "interest": user.interest,
-            "purpose": user.purpose,
-        }
+    user_profile = {
+        "age": user.age,
+        "gender": user.gender,
+        "region": user.region,
+        "job": user.job,
+        "interest": user.interest,
+        "purpose": user.purpose,
+    }
 
-    result = await generate_personal_analysis(article_data, user_profile)
+    result = await generate_personal_analysis(
+        article_data,
+        user_profile,
+    )
+
     personal_crud.create_analysis(
-        {"article_id": article_id, "user_id": user_id, **result}
-    )  # 생성된 개인 해설을 DB에 저장
+        db,
+        {
+            "article_id": article_id,
+            "user_id": user_id,
+            **result,
+        },
+    )
 
     return result
