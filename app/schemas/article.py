@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ArticlePreviewResponse(BaseModel):
@@ -9,6 +9,9 @@ class ArticlePreviewResponse(BaseModel):
     publisher: str
     content: str
     category: str
+
+    # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ArticleDetailResponse(BaseModel):
@@ -22,3 +25,6 @@ class ArticleDetailResponse(BaseModel):
     content: str
     summary: str
     embedding: list[float]
+
+    # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
+    model_config = ConfigDict(from_attributes=True)

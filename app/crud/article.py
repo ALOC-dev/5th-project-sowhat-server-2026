@@ -32,7 +32,7 @@ def get_all_articles(db):
 
 
 def get_articles_by_date(db, date):
-    return db.query(Article).filter(Article.published_at >= date)
+    return db.query(Article).filter(Article.published_at >= date).all()
 
 
 def get_articles_by_cosine_similarity(db, date, user_embedding, limit):
@@ -42,7 +42,7 @@ def get_articles_by_cosine_similarity(db, date, user_embedding, limit):
         .order_by(Article.embedding.cosine_distance(user_embedding))
         .limit(limit)
     )
-    return db.execute(stmt).all()
+    return db.execute(stmt).scalars().all()
 
 
 def get_article_by_id(db, article_id):
@@ -59,7 +59,12 @@ def update_article_by_id(db, article_id, payload):
     if article is None:
         return None
 
-    for key, value in payload.items():
+    if type(payload) is dict:
+        update_data = payload
+    else:
+        update_data = payload.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
         setattr(article, key, value)
 
     try:

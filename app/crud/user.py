@@ -24,7 +24,10 @@ def update_user(db, user_id, payload):
     if db_user is None:
         return None
 
-    update_data = payload.model_dump(exclude_unset=True)
+    if type(payload) is dict:
+        update_data = payload
+    else:
+        update_data = payload.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():
         setattr(db_user, key, value)
