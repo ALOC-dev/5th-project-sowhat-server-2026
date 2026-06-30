@@ -40,6 +40,14 @@ async def generate_common_analysis(article_data: dict):
     parsed = response.choices[0].message.parsed.model_dump()
 
     parsed["embedding"] = await get_embedding(parsed["summary"])
+
+    """
+    returns: dict
+        {
+            "summary": str,
+            "embedding": list[float],
+        }
+    """
     return parsed
 
 

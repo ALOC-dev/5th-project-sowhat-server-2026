@@ -18,6 +18,7 @@ class ArticleDetailResponse(BaseModel):
     published_at: datetime
     publisher: str
     reporter: str
+    category: str
     content: str
     summary: str
-    category: str
+    embedding: list[float]
