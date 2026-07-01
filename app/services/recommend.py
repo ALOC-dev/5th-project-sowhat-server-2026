@@ -5,7 +5,8 @@ from app.services.llm.openai_client import get_embedding
 from app.services.llm_service import generate_common_analysis
 
 
-async def create_article_recommendation(db, user_id):
+async def recommend_by_cosine_similarity(db, user):
+
     # 1. 최근 1일 동안의 뉴스만 필터링하기
     now = datetime.now()
     recent_24_hours = now - timedelta(hours=24)
@@ -29,10 +30,10 @@ async def create_article_recommendation(db, user_id):
 
     # 3. 사용자 정보 불러오기
     #   3-1. 사용자 정보 임베딩이 없으면 생성하기
-    user = user_crud.get_user_by_id(db, user_id)
+    #   TODO: 사용자 입력정보 외에 기본정보(연령/성별/직업/관심사 등)도 반영하도록 하기
     if user.embedding is None:
         user_embedding = await get_embedding(user.extra_information)
-        user_crud.update_user(db, user_id, {"embedding": user_embedding})  # DB에 저장
+        user_crud.update_user(db, user.id, {"embedding": user_embedding})  # DB에 저장
     else:
         user_embedding = user.embedding
 
@@ -43,3 +44,9 @@ async def create_article_recommendation(db, user_id):
         user_embedding=user_embedding,
         limit=10,
     )
+
+
+def recommend_by_weights(user):
+    # TODO: 사용자 기본정보 가중치 반영로직 여기에 작성하면 될듯?
+    #       더 좋은 방법이 있으면 다르게 해도 됨
+    pass
