@@ -15,6 +15,6 @@ htmlcov/
 # temp files
 tempCodeRunnerFile.py
 
-.agent
+.agent/
 
 .env

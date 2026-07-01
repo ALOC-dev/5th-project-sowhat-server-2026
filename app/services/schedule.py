@@ -19,7 +19,6 @@ from app.db.database import SessionLocal
 from app.models.enums import CategoryEnum
 from app.services.llm_service import generate_common_analysis
 
-
 # 수집 대상 RSS 피드 목록
 YONHAP_RSS: dict[str, str] = {
     # "연합뉴스(전체)": "https://www.yna.co.kr/rss/news.xml",
@@ -40,7 +39,6 @@ YONHAP_CATEGORY_MAP = {
     "연합뉴스(정치)": CategoryEnum.POLITICS,
     "연합뉴스(경제)": CategoryEnum.ECONOMY,
     "연합뉴스(사회)": CategoryEnum.SOCIETY,
-
     # CategoryEnum에 INDUSTRY, WORLD가 없으면 임시로 SOCIETY 처리
     "연합뉴스(산업/IT)": CategoryEnum.SOCIETY,
     "연합뉴스(세계)": CategoryEnum.SOCIETY,
@@ -220,10 +218,11 @@ async def process_yonhap_rss(
                             "published_at": published_at,
                             "publisher": "연합뉴스",
                             "reporter": reporter,
+                            "category": category,
                             "content": content,
                             "summary": analysis["summary"],
                             "keyword": analysis["keyword"],
-                            "category": category,
+                            "embedding": analysis["embedding"],
                         }
                     )
                 else:
@@ -251,10 +250,7 @@ async def run_yonhap_crawling() -> dict[str, list[dict]]:
     print("=" * 60)
     print("[CRAWL] 연합뉴스 전체 RSS 수집 시작")
 
-    tasks = {
-        name: process_yonhap_rss(name, url)
-        for name, url in YONHAP_RSS.items()
-    }
+    tasks = {name: process_yonhap_rss(name, url) for name, url in YONHAP_RSS.items()}
 
     results = await asyncio.gather(*tasks.values(), return_exceptions=True)
 

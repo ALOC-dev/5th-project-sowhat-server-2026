@@ -1,12 +1,15 @@
 import json
 
 # from app.services.llm.groq_client import create_json_completion
-from app.services.llm.openai_client import create_json_completion
+from app.services.llm.openai_client import create_json_completion, get_embedding
 from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
     PERSONAL_ANALYSIS_PROMPT,
     SYSTEM_JSON_PROMPT,
 )
+
+from app.schemas.common_analysis import CommonAnalysis
+from app.schemas.personal_analysis import PersonalAnalysis
 
 
 async def generate_common_analysis(article_data: dict):
@@ -27,36 +30,25 @@ async def generate_common_analysis(article_data: dict):
 
     ### OpenAI
     response = await create_json_completion(
-        [
-            {
-                "role": "system",
-                "content": [
-                    {"type": "input_text", "text": SYSTEM_JSON_PROMPT},
-                ],
-            },
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": prompt},
-                ],
-            },
-        ]
+        messages=[
+            {"role": "system", "content": SYSTEM_JSON_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        response_format=CommonAnalysis,
     )
 
-    raw_text = response.output_text
+    parsed = response.choices[0].message.parsed.model_dump()
 
-    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+    parsed["embedding"] = await get_embedding(parsed["summary"])
 
-    try:
-        return json.loads(raw_text)
-
-    except json.JSONDecodeError as exc:
-        print(f"[JSON ERROR] {exc}")
-
-        return {
-            "summary": "해설 생성 실패",
-            "keyword": "오류",
+    """
+    returns: dict
+        {
+            "summary": str,
+            "embedding": list[float],
         }
+    """
+    return parsed
 
 
 async def generate_personal_analysis(
@@ -86,33 +78,12 @@ async def generate_personal_analysis(
 
     ### OpenAI
     response = await create_json_completion(
-        [
-            {
-                "role": "system",
-                "content": [
-                    {"type": "input_text", "text": SYSTEM_JSON_PROMPT},
-                ],
-            },
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": prompt},
-                ],
-            },
+        messages=[
+            {"role": "system", "content": SYSTEM_JSON_PROMPT},
+            {"role": "user", "content": prompt},
         ],
+        response_format=PersonalAnalysis,
     )
 
-    raw_text = response.output_text
-
-    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
-
-    try:
-        return json.loads(raw_text)
-
-    except json.JSONDecodeError as exc:
-        print(f"[JSON ERROR] {exc}")
-
-        return {
-            "effect": "해설 생성 실패",
-            "solution": "잠시 후 다시 시도해주세요.",
-        }
+    parsed = response.choices[0].message.parsed.model_dump()
+    return parsed
