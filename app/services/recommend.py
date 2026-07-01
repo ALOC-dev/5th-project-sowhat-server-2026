@@ -2,8 +2,7 @@ from datetime import datetime, timedelta
 import app.crud.article as article_crud
 import app.crud.user as user_crud
 from app.services.llm.openai_client import get_embedding
-from app.services.llm_service import generate_common_analysis
-
+from app.services.llm_service import generate_common_analysis 
 
 async def recommend_by_cosine_similarity(db, user):
 
@@ -28,11 +27,13 @@ async def recommend_by_cosine_similarity(db, user):
                     db, article.id, {"embedding": article_embedding}
                 )  # DB에 저장
 
-    # 3. 사용자 정보 불러오기
-    #   3-1. 사용자 정보 임베딩이 없으면 생성하기
-    #   TODO: 사용자 입력정보 외에 기본정보(연령/성별/직업/관심사 등)도 반영하도록 하기
+    # 3. 사용자 정보 불러오기 및 고품질 초기 임베딩 생성
     if user.embedding is None:
-        user_embedding = await get_embedding(user.extra_information)
+        profile_text = (
+            f"나이: {user.age}, 성별: {user.gender}, 직업: {user.job}, "
+            f"관심사: {user.interest}, 목적: {user.purpose}, 추가정보: {user.extra_information}"
+        )
+        user_embedding = await get_embedding(profile_text)
         user_crud.update_user(db, user.id, {"embedding": user_embedding})  # DB에 저장
     else:
         user_embedding = user.embedding
@@ -46,7 +47,45 @@ async def recommend_by_cosine_similarity(db, user):
     )
 
 
-def recommend_by_weights(user):
-    # TODO: 사용자 기본정보 가중치 반영로직 여기에 작성하면 될듯?
-    #       더 좋은 방법이 있으면 다르게 해도 됨
-    pass
+def recommend_by_weights(db, user):
+    """프로필 가중치 + 최신성 종합 점수 계산"""
+    user_interests = user_crud.get_user_interest_scores(db, user.id) or {}
+    all_articles = article_crud.get_all_articles(db)
+    scored_articles = []
+    current_time = datetime.now()
+
+    for article in all_articles:
+        score = 0.0
+
+        # 2차 행동형 가중치: 키워드 매칭
+        if article.keyword:
+            article_keywords = (
+                [k.strip() for k in article.keyword.split(",")]
+                if isinstance(article.keyword, str)
+                else article.keyword
+            )
+            for keyword in article_keywords:
+                score += user_interests.get(keyword, 0) * 2.0
+
+        # 1차 프로필 가중치: 관심 카테고리 일치
+        if user.interest and getattr(article, "category", None) == user.interest:
+            score += 15.0
+
+        # 1차 프로필 가중치: 직업, 지역 일치
+        if getattr(article, "target_job", None) == user.job:
+            score += 5.0
+        if getattr(article, "target_region", None) == user.region:
+            score += 3.0
+
+        # 최신성 가중치
+        if getattr(article, "created_at", None):
+            time_delta = (current_time - article.created_at).total_seconds() / 3600
+            if time_delta <= 24:
+                score += 10.0
+            elif time_delta <= 72:
+                score += 5.0
+
+        scored_articles.append((score, article))
+
+    scored_articles.sort(key=lambda x: x[0], reverse=True)
+    return [item[1] for item in scored_articles[:20]]
