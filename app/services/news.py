@@ -1,7 +1,7 @@
-from enum import Enum
-
+from sqlalchemy.orm import Session
 import app.crud.user as crud
 from app.exceptions.domain import UserNotFoundError, InvalidArgumentError
+from enum import Enum
 
 USER_ENUM_FIELD_NAMES = ("gender", "region", "job", "interest", "purpose")
 
@@ -61,9 +61,8 @@ def modify_user(db, user_id, payload):
         raise UserNotFoundError()
     return user
 
-
-def update_user_interests(db, user_id, article_id):
-
+def update_user_interests(db: Session, user_id: int, article_id: int):
+    #유저가 특정 기사를 조회했을 때, 해당 기사의 키워드를 추출하여 crud 레이어를 통해 유저 DB(JSON 필드)에 누적시키는 함수
     user = get_user(db, user_id)
     
     import app.crud.article as article_crud
@@ -73,5 +72,4 @@ def update_user_interests(db, user_id, article_id):
         
     keywords = [k.strip() for k in article.keyword.split(",")] if isinstance(article.keyword, str) else article.keyword
     
-    updated_user = crud.update_user_behavior_tags(db, user_id, keywords)
-    return updated_user
+    return crud.update_user_behavior_tags(db, user_id, keywords)

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Enum, Integer, Text, func
+from sqlalchemy import Column, DateTime, Enum, Integer, Text, func, JSON
 from app.db.database import Base
 
 from app.models.enums import (
@@ -8,7 +8,6 @@ from app.models.enums import (
     CategoryEnum,
     PurposeEnum,
 )
-
 
 class User(Base):
     __tablename__ = "user"
@@ -24,3 +23,5 @@ class User(Base):
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    
+    behavior_interests = Column(JSON, default=dict, nullable=False)
