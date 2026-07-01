@@ -24,7 +24,10 @@ def update_user(db: Session, user_id: int, payload):
     if db_user is None:
         return None
 
-    update_data = payload.model_dump(exclude_unset=True)
+    if type(payload) is dict:
+        update_data = payload
+    else:
+        update_data = payload.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():
         setattr(db_user, key, value)
@@ -36,6 +39,7 @@ def update_user(db: Session, user_id: int, payload):
     except Exception:
         db.rollback()
         raise
+<<<<<<< HEAD
 
 def update_user_behavior_tags(db: Session, user_id: int, keywords: list[str]):
     db_user = db.query(User).filter(User.id == user_id).first()
@@ -58,3 +62,5 @@ def update_user_behavior_tags(db: Session, user_id: int, keywords: list[str]):
     except Exception:
         db.rollback()
         raise
+=======
+>>>>>>> 241811fcab5bb0915c42d7feae71c8c2134a5f83

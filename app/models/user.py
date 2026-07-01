@@ -1,4 +1,5 @@
 from sqlalchemy import Column, DateTime, Enum, Integer, Text, func, JSON
+from pgvector.sqlalchemy import Vector
 from app.db.database import Base
 
 from app.models.enums import (
@@ -20,6 +21,7 @@ class User(Base):
     interest = Column(Enum(CategoryEnum, name="category_enum"), nullable=True)
     purpose = Column(Enum(PurposeEnum, name="purpose_enum"), nullable=True)
     extra_information = Column(Text, nullable=True)
+    embedding = Column(Vector(1536), nullable=True)
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
