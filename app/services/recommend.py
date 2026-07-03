@@ -27,25 +27,40 @@ async def recommend_by_cosine_similarity(db, user):
                     db, article.id, {"embedding": article_embedding}
                 )  # DB에 저장
 
-    # 3. 사용자 정보 불러오기 및 고품질 초기 임베딩 생성
-    if user.embedding is None:
+        # 3. 사용자 프로필 정보를 자연스러운 구어체 문장형으로 묘사하여 초기 프로필 임베딩 생성
+    if user.profile_embedding is None:
         profile_text = (
-            f"나이: {user.age}, 성별: {user.gender}, 직업: {user.job}, "
-            f"관심사: {user.interest}, 목적: {user.purpose}, 추가정보: {user.extra_information}"
+            f"이 사용자는 {user.age}세이며, 성별은 {user.gender}입니다. "
+            f"현재 직업은 {user.job}이며, 주로 {user.region} 지역의 소식에 관심이 있습니다. "
+            f"평소에 {user.interest} 분야의 뉴스를 즐겨 읽으며, "
+            f"뉴스를 읽는 주된 목적은 {user.purpose}을(를) 위한 것입니다. "
+            f"추가적인 사용자 성향 정보는 다음과 같습니다: {user.extra_information}"
         )
-        user_embedding = await get_embedding(profile_text)
-        user_crud.update_user(db, user.id, {"embedding": user_embedding})  # DB에 저장
+        p_embedding = await get_embedding(profile_text)
+        user_crud.update_user(db, user.id, {"profile_embedding": p_embedding})  # DB에 저장
     else:
-        user_embedding = user.embedding
+        p_embedding = user.profile_embedding
 
-    # 4. 코사인 유사도가 높은 상위 10개 반환
+    # 4. 행동 임베딩 검증 및 초기화
+    if user.behavior_embedding is None:
+        b_embedding = p_embedding.copy()
+        user_crud.update_user(db, user.id, {"behavior_embedding": b_embedding})  # DB에 저장
+    else:
+        b_embedding = user.behavior_embedding
+
+    # 5. 두 임베딩을 0.7 : 0.3 비율로 가중 결합
+    final_user_embedding = [
+        (p_val * 0.7) + (b_val * 0.3)
+        for p_val, b_val in zip(p_embedding, b_embedding)
+    ]
+
+    # 6. 결합된 하이브리드 벡터로 코사인 유사도가 높은 상위 20개 반환
     return article_crud.get_articles_by_cosine_similarity(
         db=db,
         date=recent_24_hours,
-        user_embedding=user_embedding,
-        limit=10,
+        user_embedding=final_user_embedding,
+        limit=20,
     )
-
 
 def recommend_by_weights(db, user):
     """프로필 가중치 + 최신성 종합 점수 계산"""
