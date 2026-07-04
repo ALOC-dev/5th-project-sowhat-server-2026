@@ -27,8 +27,21 @@ def create_articles(db, articles):
         raise
 
 
+# 최신 기사 최대 30개 불러오기 (overfetching 예방)
 def get_all_articles(db):
-    return db.query(Article).all()
+    stmt = select(Article).order_by(Article.published_at.desc()).limit(30)
+    return db.execute(stmt).scalars().all()
+
+
+# 나중에 페이지네이션 구현에 사용
+# def get_all_articles(db, limit, offset):
+#     stmt = (
+#         select(Article)
+#         .order_by(Article.published_at.desc())
+#         .limit(limit)
+#         .offset(offset)
+#     )
+#     return db.execute(stmt).scalars().all()
 
 
 def get_articles_by_date(db, date):
