@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
 
+# 공통 해설 생성 시 JSON 형식 맞추기 위한 객체
 class CommonAnalysis(BaseModel):
     summary: str
     keyword: str

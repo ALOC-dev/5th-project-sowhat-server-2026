@@ -10,6 +10,7 @@ from app.models.enums import (
     PurposeEnum,
 )
 
+
 class User(Base):
     __tablename__ = "user"
 
@@ -25,5 +26,6 @@ class User(Base):
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    
     behavior_interests = Column(JSON, default=dict, nullable=False)
+    profile_embedding = Column(Vector(1536), nullable=True)  
+    behavior_embedding = Column(Vector(1536), nullable=True)
