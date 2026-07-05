@@ -63,21 +63,21 @@ def modify_user(db, user_id, payload):
     return user
 
 
-def update_user_interests(db, user_id, article_id):
+# def update_user_interests(db, user_id, article_id):
 
-    user = get_user(db, user_id)
+#     user = get_user(db, user_id)
 
-    import app.crud.article as article_crud
+#     import app.crud.article as article_crud
 
-    article = article_crud.get_article_by_id(db, article_id)
-    if article is None or not article.keyword:
-        return user
+#     article = article_crud.get_article_by_id(db, article_id)
+#     if article is None or not article.keyword:
+#         return user
 
-    keywords = (
-        [k.strip() for k in article.keyword.split(",")]
-        if isinstance(article.keyword, str)
-        else article.keyword
-    )
+#     keywords = (
+#         [k.strip() for k in article.keyword.split(",")]
+#         if isinstance(article.keyword, str)
+#         else article.keyword
+#     )
 
-    updated_user = crud.update_user_behavior_tags(db, user_id, keywords)
-    return updated_user
+#     updated_user = crud.update_user_behavior_tags(db, user_id, keywords)
+#     return updated_user

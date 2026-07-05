@@ -1,4 +1,6 @@
 # import json
+import numpy as np
+
 # from app.services.llm.groq_client import create_json_completion
 from app.services.llm.openai_client import create_json_completion, get_embedding
 from app.services.llm.prompts import (
@@ -88,6 +90,8 @@ async def generate_personal_analysis(
     return parsed
 
 
+# 사용자 프로필 정보 임베딩 생성 함수
+# 처음 회원가입할 때 및 기사 추천시 사용자 임베딩이 없을 때 호출
 async def generate_user_profile_embedding(user):
     # 사용자 프로필 정보를 자연스러운 구어체 문장형으로 묘사하여 초기 프로필 임베딩 생성
     profile_text = [
@@ -101,4 +105,21 @@ async def generate_user_profile_embedding(user):
         profile_text
     )  # 각 프로필 항목에 대한 임베딩을 리스트로 반환
 
-    return embeddings
+    """
+    각 임베딩을 다음 비율로 가중합하고 정규화해 사용자 프로필 임베딩을 구한다.
+    (0) 나이/성별 0.1
+    (1) 직업/지역 0.2
+    (2) 관심사 0.3
+    (3) 목적 0.2
+    (4) 추가 정보 0.2
+    """
+    profile_embedding = (
+        embeddings[0] * 0.1
+        + embeddings[1] * 0.2
+        + embeddings[2] * 0.3
+        + embeddings[3] * 0.2
+        + embeddings[4] * 0.2
+    )
+    profile_embedding /= np.linalg.norm(profile_embedding)  # 정규화
+
+    return profile_embedding
