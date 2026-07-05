@@ -58,7 +58,7 @@ async def recommend_by_cosine_similarity(db: Session, user: User) -> list[Articl
 
     # 5. 사용자 프로필 임베딩, 행동 임베딩을 하나로 합침
     #   5-1. 두 임베딩을 0.7 : 0.3 비율로 가중합
-    #   5-2. 정규화
+    #   5-2. 벡터 크기를 1로 유지하기 위해 정규화
     final_user_embedding = p_embedding * 0.7 + b_embedding * 0.3
     final_user_embedding /= np.linalg.norm(final_user_embedding)
 

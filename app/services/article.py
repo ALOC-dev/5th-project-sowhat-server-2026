@@ -109,6 +109,7 @@ async def get_personal_analysis(db: Session, article_id: int, user_id: int) -> d
         if user.profile_embedding is None:
             profile_embedding = await generate_user_profile_embedding(user)
             user_crud.update_user(db, user_id, {"profile_embedding": profile_embedding})
+            behavior_embedding = profile_embedding
         else:
             behavior_embedding = user.profile_embedding
     else:
@@ -126,5 +127,6 @@ async def get_personal_analysis(db: Session, article_id: int, user_id: int) -> d
     # 기존 임베딩 : 새로 추가될 기사 임베딩의 반영 비율을 0.9: 0.1로 정하고 가중합
     behavior_embedding = behavior_embedding * 0.9 + article_embedding * 0.1
     behavior_embedding /= np.linalg.norm(behavior_embedding)  # 정규화
+    user_crud.update_user(db, user_id, {"behavior_embedding": behavior_embedding})
 
     return personal_analysis

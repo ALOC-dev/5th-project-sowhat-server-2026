@@ -15,11 +15,14 @@ from app.schemas.common_analysis import CommonAnalysis
 from app.schemas.personal_analysis import PersonalAnalysis
 
 
-async def generate_common_analysis(article: Article) -> dict:
+async def generate_common_analysis(article: Article | dict) -> dict:
+    if type(article) is Article:
+        article = article.model_dump()
+
     prompt = COMMON_ANALYSIS_PROMPT.format(
-        title=article.title,
-        category=article.category,
-        content=article.content,
+        title=article["title"],
+        category=article["category"],
+        content=article["content"],
     )
 
     ### Groq
@@ -97,16 +100,21 @@ async def generate_personal_analysis(article: Article, user: User) -> dict:
 
 # 기사 임베딩 생성 함수
 # LLM으로 생성된 기사 요약본을 통해 임베딩 생성
-async def generate_article_embedding(article: Article) -> list[float]:
+async def generate_article_embedding(article: Article | dict) -> list[float]:
+    if type(article) is Article:
+        article = article.model_dump()
+
     # 기사 요약 불러오기, 없을 시 생성
-    if article.summary is None:
+    if article["summary"] is None:
         common_analysis = await generate_common_analysis(article)
         summary = common_analysis["summary"]
     else:
-        summary = article.summary
+        summary = article["summary"]
 
-    embedding = await get_embedding(summary)
-    return embedding
+    embeddings = await get_embedding(summary)
+    article_embedding = embeddings[0]
+    article_embedding /= np.linalg.norm(article_embedding)  # 벡터 정규화
+    return article_embedding
 
 
 # 사용자 프로필 정보 임베딩 생성 함수
@@ -140,5 +148,7 @@ async def generate_user_profile_embedding(user: User) -> list[float]:
         + embeddings[4] * 0.2
     )
     profile_embedding /= np.linalg.norm(profile_embedding)  # 정규화
+
+    print("TYPE:", type(profile_embedding))
 
     return profile_embedding

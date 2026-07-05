@@ -1,3 +1,4 @@
+import numpy as np
 from openai import AsyncOpenAI
 from app.core.config import settings
 
@@ -12,9 +13,9 @@ def create_json_completion(messages: list[dict], response_format: type):
     )
 
 
-async def get_embedding(text: str | list[str]) -> list[float]:
+async def get_embedding(text: str | list[str]) -> list[list[float]]:
     response = await client.embeddings.create(
         model=settings.OPENAI_EMBEDDING_MODEL,
         input=text,
     )
-    return response.data[0].embedding
+    return [np.array(item.embedding) for item in response.data]

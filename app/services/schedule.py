@@ -17,7 +17,10 @@ import app.crud.article as article_crud
 from app.exceptions.infrastructure import DatabaseError, ExternalAPIError
 from app.db.database import SessionLocal
 from app.models.enums import CategoryEnum
-from app.services.llm_service import generate_common_analysis
+from app.services.llm_service import (
+    generate_common_analysis,
+    generate_article_embedding,
+)
 
 # 수집 대상 RSS 피드 목록
 YONHAP_RSS: dict[str, str] = {
@@ -203,6 +206,16 @@ async def process_yonhap_rss(
                                 "category": category.value,
                             }
                         )
+
+                        embedding = await generate_article_embedding(
+                            {
+                                "title": title,
+                                "content": content,
+                                "category": category.value,
+                                "summary": analysis["summary"],
+                            }
+                        )
+
                     except Exception as exc:
                         print(f"[ERROR] 공통 해설 생성 실패: {exc}")
 
@@ -222,7 +235,7 @@ async def process_yonhap_rss(
                             "content": content,
                             "summary": analysis["summary"],
                             "keyword": analysis["keyword"],
-                            "embedding": analysis["embedding"],
+                            "embedding": embedding,
                         }
                     )
                 else:
