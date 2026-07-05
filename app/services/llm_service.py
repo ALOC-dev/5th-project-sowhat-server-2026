@@ -13,11 +13,11 @@ from app.schemas.common_analysis import CommonAnalysis
 from app.schemas.personal_analysis import PersonalAnalysis
 
 
-async def generate_common_analysis(article_data: dict):
+async def generate_common_analysis(article):
     prompt = COMMON_ANALYSIS_PROMPT.format(
-        title=article_data["title"],
-        category=article_data["category"],
-        content=article_data["content"],
+        title=article.title,
+        category=article.category,
+        content=article.content,
     )
 
     ### Groq
@@ -40,32 +40,27 @@ async def generate_common_analysis(article_data: dict):
 
     parsed = response.choices[0].message.parsed.model_dump()
 
-    parsed["embedding"] = await get_embedding(parsed["summary"])
-
     """
     returns: dict
         {
             "summary": str,
-            "embedding": list[float],
+            # TODO: "keyword": dict(str, str) 추가
         }
     """
     return parsed
 
 
-async def generate_personal_analysis(
-    article_data: dict,
-    user_profile: dict,
-):
+async def generate_personal_analysis(article, user):
     prompt = PERSONAL_ANALYSIS_PROMPT.format(
-        title=article_data["title"],
-        category=article_data["category"],
-        content=article_data["content"],
-        age=user_profile["age"],
-        gender=user_profile["gender"],
-        region=user_profile["region"],
-        job=user_profile["job"],
-        interest=user_profile["interest"],
-        purpose=user_profile["purpose"],
+        title=article.title,
+        category=article.category,
+        content=article.content,
+        age=user.age,
+        gender=user.gender,
+        region=user.region,
+        job=user.job,
+        interest=user.interest,
+        purpose=user.purpose,
     )
 
     ### Groq
@@ -87,7 +82,29 @@ async def generate_personal_analysis(
     )
 
     parsed = response.choices[0].message.parsed.model_dump()
+
+    """
+    returns: dict
+        {
+            "effect": str,
+            "solution": str,
+        }
+    """
     return parsed
+
+
+# 기사 임베딩 생성 함수
+# LLM으로 생성된 기사 요약본을 통해 임베딩 생성
+async def generate_article_embedding(article):
+    # 기사 요약 불러오기, 없을 시 생성
+    if article.summary is None:
+        common_analysis = await generate_common_analysis(article)
+        summary = common_analysis["summary"]
+    else:
+        summary = article.summary
+
+    embedding = await get_embedding(summary)
+    return embedding
 
 
 # 사용자 프로필 정보 임베딩 생성 함수

@@ -10,14 +10,6 @@ from app.services.llm_service import (
 )
 
 
-# 기사 클릭 시 사용자의 행동 임베딩에 반영하기 위한 계산 함수
-def calculate_behavior_embedding(original_embedding, new_embedding):
-    # 기존 임베딩 : 새로 추가될 임베딩의 반영 비율을 0.9: 0.1로 정하고 가중합
-    behavior_embedding = original_embedding * 0.9 + new_embedding * 0.1
-    behavior_embedding /= np.linalg.norm(behavior_embedding)  # 정규화
-    return behavior_embedding
-
-
 async def recommend_by_cosine_similarity(db, user):
     # 1. 최근 1일 동안의 뉴스만 필터링하기
     now = datetime.now()
@@ -43,8 +35,6 @@ async def recommend_by_cosine_similarity(db, user):
     # 3. 사용자의 프로필 임베딩 불러오기
     #   3-1. 프로필 임베딩이 없을 경우 생성
     if user.profile_embedding is None:
-        # 사용자 정보의 각 항목 임베딩을 리스트로 받아오기
-        # 배정된 가중치에 따라 프로필 임베딩 계산
         p_embedding = await generate_user_profile_embedding(user)
 
         user_crud.update_user(
