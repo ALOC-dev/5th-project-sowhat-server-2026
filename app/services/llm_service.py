@@ -2,6 +2,8 @@
 import numpy as np
 
 # from app.services.llm.groq_client import create_json_completion
+from app.models.article import Article
+from app.models.user import User
 from app.services.llm.openai_client import create_json_completion, get_embedding
 from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
@@ -13,7 +15,7 @@ from app.schemas.common_analysis import CommonAnalysis
 from app.schemas.personal_analysis import PersonalAnalysis
 
 
-async def generate_common_analysis(article):
+async def generate_common_analysis(article: Article) -> dict:
     prompt = COMMON_ANALYSIS_PROMPT.format(
         title=article.title,
         category=article.category,
@@ -50,7 +52,7 @@ async def generate_common_analysis(article):
     return parsed
 
 
-async def generate_personal_analysis(article, user):
+async def generate_personal_analysis(article: Article, user: User) -> dict:
     prompt = PERSONAL_ANALYSIS_PROMPT.format(
         title=article.title,
         category=article.category,
@@ -95,7 +97,7 @@ async def generate_personal_analysis(article, user):
 
 # 기사 임베딩 생성 함수
 # LLM으로 생성된 기사 요약본을 통해 임베딩 생성
-async def generate_article_embedding(article):
+async def generate_article_embedding(article: Article) -> list[float]:
     # 기사 요약 불러오기, 없을 시 생성
     if article.summary is None:
         common_analysis = await generate_common_analysis(article)
@@ -109,7 +111,7 @@ async def generate_article_embedding(article):
 
 # 사용자 프로필 정보 임베딩 생성 함수
 # 처음 회원가입할 때 및 기사 추천시 사용자 임베딩이 없을 때 호출
-async def generate_user_profile_embedding(user):
+async def generate_user_profile_embedding(user: User) -> list[float]:
     # 사용자 프로필 정보를 자연스러운 구어체 문장형으로 묘사하여 초기 프로필 임베딩 생성
     profile_text = [
         f"이 사용자는 {user.age}세이며, 성별은 {user.gender}입니다.",

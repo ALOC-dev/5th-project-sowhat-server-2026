@@ -2,9 +2,8 @@ from app.models.user import User
 from sqlalchemy.orm import Session
 
 
-def create_user(db: Session, payload):
-    new_user = User(**payload.model_dump())
-
+def create_user(db: Session, payload: dict) -> User:
+    new_user = User(**payload)
     try:
         db.add(new_user)
         db.commit()
@@ -15,11 +14,11 @@ def create_user(db: Session, payload):
         raise
 
 
-def get_user_by_id(db: Session, user_id: int):
+def get_user_by_id(db: Session, user_id: int) -> User:
     return db.query(User).filter(User.id == user_id).first()
 
 
-def update_user(db: Session, user_id: int, payload):
+def update_user(db: Session, user_id: int, payload: dict) -> User:
     db_user = db.query(User).filter(User.id == user_id).first()
 
     if db_user is None:

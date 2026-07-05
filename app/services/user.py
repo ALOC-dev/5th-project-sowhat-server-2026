@@ -1,18 +1,21 @@
 from enum import Enum
 
+from sqlalchemy.orm import Session
+
 import app.crud.user as crud
-from app.services.llm.openai_client import get_embedding
+from app.models.user import User
+from app.schemas.user import UserCreateRequest, UserUpdateRequest
 from app.exceptions.domain import UserNotFoundError, InvalidArgumentError
 
 USER_ENUM_FIELD_NAMES = ("gender", "region", "job", "interest", "purpose")
 
 
-def _validate_natural_number(value, field_name):
+def _validate_natural_number(value, field_name: str) -> None:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise InvalidArgumentError(f"{field_name}은(는) 자연수여야 합니다.")
 
 
-def _validate_enum_value(value, enum_class, field_name):
+def _validate_enum_value(value, enum_class: type[Enum], field_name: str) -> None:
     if isinstance(value, enum_class):
         return
 
@@ -25,13 +28,17 @@ def _validate_enum_value(value, enum_class, field_name):
     )
 
 
-def _get_payload_field_annotation(payload, field_name):
+def _get_payload_field_annotation(
+    payload: UserCreateRequest | UserUpdateRequest, field_name: str
+):
     model_fields = getattr(payload.__class__, "model_fields", {})
     field = model_fields.get(field_name)
     return getattr(field, "annotation", None)
 
 
-def _validate_create_user_payload(payload):
+def _validate_create_user_payload(
+    payload: UserCreateRequest | UserUpdateRequest,
+) -> None:
     _validate_natural_number(payload.age, "age")
 
     for field_name in USER_ENUM_FIELD_NAMES:
@@ -42,28 +49,28 @@ def _validate_create_user_payload(payload):
         _validate_enum_value(getattr(payload, field_name), enum_class, field_name)
 
 
-def create_user(db, payload):
+def create_user(db: Session, payload: UserCreateRequest) -> User:
     _validate_create_user_payload(payload)
-    user = crud.create_user(db, payload)
+    user = crud.create_user(db, payload.model_dump())
     return user
 
 
-def get_user(db, user_id):
+def get_user(db: Session, user_id: int) -> User:
     user = crud.get_user_by_id(db, user_id)
     if user is None:
         raise UserNotFoundError()
     return user
 
 
-def modify_user(db, user_id, payload):
+def modify_user(db: Session, user_id: int, payload: UserUpdateRequest) -> User:
     _validate_create_user_payload(payload)
-    user = crud.update_user(db, user_id, payload)
+    user = crud.update_user(db, user_id, payload.model_dump())
     if user is None:
         raise UserNotFoundError()
     return user
 
 
-# def update_user_interests(db, user_id, article_id):
+# def update_user_interests(db: Session, user_id: int, article_id: int) -> User:
 
 #     user = get_user(db, user_id)
 

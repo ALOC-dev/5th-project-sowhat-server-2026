@@ -1,8 +1,11 @@
 from datetime import datetime, timedelta
 import numpy as np
+from sqlalchemy.orm import Session
 
 import app.crud.article as article_crud
 import app.crud.user as user_crud
+from app.models.article import Article
+from app.models.user import User
 from app.services.llm.openai_client import get_embedding
 from app.services.llm_service import (
     generate_common_analysis,
@@ -10,7 +13,7 @@ from app.services.llm_service import (
 )
 
 
-async def recommend_by_cosine_similarity(db, user):
+async def recommend_by_cosine_similarity(db: Session, user: User) -> list[Article]:
     # 1. 최근 1일 동안의 뉴스만 필터링하기
     now = datetime.now()
     recent_24_hours = now - timedelta(hours=24)

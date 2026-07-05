@@ -1,7 +1,9 @@
+from sqlalchemy.orm import Session
+
 from app.models.personal_analysis import PersonalAnalysis
 
 
-def create_analysis(db, payload):
+def create_analysis(db: Session, payload: dict) -> PersonalAnalysis:
     analysis = PersonalAnalysis(**payload)
 
     try:
@@ -14,7 +16,9 @@ def create_analysis(db, payload):
         raise
 
 
-def get_analysis_by_article_and_user(db, article_id, user_id):
+def get_analysis_by_article_and_user(
+    db: Session, article_id: int, user_id: int
+) -> PersonalAnalysis:
     return (
         db.query(PersonalAnalysis)
         .filter(
