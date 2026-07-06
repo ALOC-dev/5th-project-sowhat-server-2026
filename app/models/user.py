@@ -22,10 +22,9 @@ class User(Base):
     interest = Column(Enum(CategoryEnum, name="category_enum"), nullable=True)
     purpose = Column(Enum(PurposeEnum, name="purpose_enum"), nullable=True)
     extra_information = Column(Text, nullable=True)
-    embedding = Column(Vector(1536), nullable=True)
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    behavior_interests = Column(JSON, default=dict, nullable=False)
-    profile_embedding = Column(Vector(1536), nullable=True)  
+    behavior_interests = Column(JSON, default=dict, nullable=True)
+    profile_embedding = Column(Vector(1536), nullable=True)
     behavior_embedding = Column(Vector(1536), nullable=True)
