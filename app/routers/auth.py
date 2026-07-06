@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 
 import app.services.auth as service
 
-router = APIRouter("/api/auth")
+router = APIRouter(prefix="/api/auth")
 
 # TODO:
 #   로그인 로그아웃 구현 (민우오빠)
