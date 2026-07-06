@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import articles, users
+from app.routers import articles, users, auth
 from app.services.schedule import run_yonhap_crawling_periodically
 from app.core.exceptions import register_exception_handlers
 
@@ -37,6 +37,7 @@ app.add_middleware(
 )
 
 # 라우터 등록
+app.include_router(auth.router)
 app.include_router(articles.router)
 app.include_router(users.router)
 
