@@ -24,7 +24,6 @@ class ArticleDetailResponse(BaseModel):
     category: str
     content: str
     summary: str
-    embedding: list[float]
 
     # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
     model_config = ConfigDict(from_attributes=True)
