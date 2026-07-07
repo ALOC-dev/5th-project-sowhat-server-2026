@@ -9,6 +9,7 @@ from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
     PERSONAL_ANALYSIS_PROMPT,
     SYSTEM_JSON_PROMPT,
+    FILTER_EXTRA_INFORMATION_PROMPT,
 )
 
 from app.schemas.common_analysis import CommonAnalysis
@@ -149,6 +150,11 @@ async def generate_user_profile_embedding(user: User) -> list[float]:
     )
     profile_embedding /= np.linalg.norm(profile_embedding)  # 정규화
 
-    print("TYPE:", type(profile_embedding))
-
     return profile_embedding
+
+
+# 채팅으로 사용자 추가정보 필터링을 요청하는 함수
+async def filter_user_extra_information(extra_info: str) -> str:
+    prompt = FILTER_EXTRA_INFORMATION_PROMPT.format(extra_information=extra_info)
+    filtered = await create_json_completion(prompt, str)
+    return filtered
