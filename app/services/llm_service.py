@@ -101,6 +101,31 @@ async def generate_personal_analysis(article: Article, user: User) -> dict:
     return parsed
 
 
+# 채팅으로 사용자 추가정보 필터링을 요청하는 함수
+async def filter_user_extra_information(
+    extra_information: str,
+) -> FilteredExtraInformation:
+    prompt = FILTER_EXTRA_INFORMATION_PROMPT.format(extra_information=extra_information)
+    response = await create_json_completion(
+        messages=[
+            {"role": "system", "content": SYSTEM_JSON_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        response_format=FilteredExtraInformation,
+    )
+
+    parsed = response.choices[0].message.parsed
+
+    """
+    returns: FilteredExtraInformation
+        {
+            "success": bool,
+            "summary": Optional[str],
+        }
+    """
+    return parsed
+
+
 # 기사 임베딩 생성 함수
 # LLM으로 생성된 기사 요약본을 통해 임베딩 생성
 async def generate_article_embedding(article: Article | dict) -> list[float]:
@@ -153,10 +178,3 @@ async def generate_user_profile_embedding(user: User) -> list[float]:
     profile_embedding /= np.linalg.norm(profile_embedding)  # 정규화
 
     return profile_embedding
-
-
-# 채팅으로 사용자 추가정보 필터링을 요청하는 함수
-async def filter_user_extra_information(extra_information: str) -> str:
-    prompt = FILTER_EXTRA_INFORMATION_PROMPT.format(extra_information=extra_information)
-    filtered = await create_json_completion(prompt, FilteredExtraInformation)
-    return filtered

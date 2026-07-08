@@ -54,3 +54,4 @@ class UserCreateResponse(BaseModel):
 # 프로필 수정 시 응답 (최신 정보 포함)
 class UserUpdateResponse(UserBase):
     id: int
+    filtered_extra_information: Optional[str] = None
