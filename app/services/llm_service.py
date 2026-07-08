@@ -4,6 +4,7 @@ import numpy as np
 # from app.services.llm.groq_client import create_json_completion
 from app.models.article import Article
 from app.models.user import User
+from app.schemas.filtered_extra_information import FilteredExtraInformation
 from app.services.llm.openai_client import create_json_completion, get_embedding
 from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
@@ -67,6 +68,7 @@ async def generate_personal_analysis(article: Article, user: User) -> dict:
         job=user.job,
         interest=user.interest,
         purpose=user.purpose,
+        extra_information=user.filtered_extra_information,
     )
 
     ### Groq
@@ -154,7 +156,7 @@ async def generate_user_profile_embedding(user: User) -> list[float]:
 
 
 # 채팅으로 사용자 추가정보 필터링을 요청하는 함수
-async def filter_user_extra_information(extra_info: str) -> str:
-    prompt = FILTER_EXTRA_INFORMATION_PROMPT.format(extra_information=extra_info)
-    filtered = await create_json_completion(prompt, str)
+async def filter_user_extra_information(extra_information: str) -> str:
+    prompt = FILTER_EXTRA_INFORMATION_PROMPT.format(extra_information=extra_information)
+    filtered = await create_json_completion(prompt, FilteredExtraInformation)
     return filtered

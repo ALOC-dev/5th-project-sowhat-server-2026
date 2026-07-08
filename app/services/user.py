@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 import app.crud.user as crud
 from app.models.user import User
+from app.schemas.filtered_extra_information import FilteredExtraInformation
 from app.schemas.user import UserCreateRequest, UserUpdateRequest
 from app.exceptions.domain import UserNotFoundError, InvalidArgumentError
 from app.services.llm_service import filter_user_extra_information
@@ -50,6 +51,14 @@ def _validate_create_user_payload(
         _validate_enum_value(getattr(payload, field_name), enum_class, field_name)
 
 
+def _validate_user_extra_information(payload: FilteredExtraInformation) -> str:
+    if not payload.success:
+        raise InvalidArgumentError(
+            "사용자 입력란에는 개인정보 및 위험한 정보(범죄, 폭력, 혐오 발언 등)를 작성할 수 없습니다."
+        )
+    return payload.summary
+
+
 async def create_user(db: Session, payload: UserCreateRequest) -> User:
     _validate_create_user_payload(payload)
 
@@ -57,7 +66,8 @@ async def create_user(db: Session, payload: UserCreateRequest) -> User:
 
     # llm 호출하여 필터링/요약된 문장 생성
     filtered = await filter_user_extra_information(payload.extra_information)
-    create_data.update({"extra_information_filtered": filtered})
+    summary = _validate_user_extra_information(filtered)
+    create_data.update({"extra_information_filtered": summary})
 
     user = crud.create_user(db, create_data)
     return user
@@ -79,8 +89,10 @@ async def modify_user(db: Session, user_id: int, payload: UserUpdateRequest) -> 
     if payload.extra_information is not None:
         filtered = await filter_user_extra_information(payload.extra_information)
         print("[FILTERED]", filtered)  # TODO: 프롬프트 테스트 끝나면 지우기
+
+        summary = _validate_user_extra_information(filtered)
         update_data.update(
-            {"extra_information_filtered": filtered}
+            {"extra_information_filtered": summary}
         )  # dict에 필터링된 문장 추가
 
     user = crud.update_user(db, user_id, update_data)
