@@ -51,7 +51,7 @@ def _validate_create_user_payload(payload: UserCreateRequest) -> None:
 
 def _validate_update_user_payload(payload: UserUpdateRequest) -> None:
     if payload.age:
-        _validate_natural_number(payload.age)
+        _validate_natural_number(payload.age, "age")
 
     for field_name in USER_ENUM_FIELD_NAMES:
         enum_class = _get_payload_field_annotation(payload, field_name)
