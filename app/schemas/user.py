@@ -19,7 +19,6 @@ class UserBase(BaseModel):
     interest: CategoryEnum
     purpose: PurposeEnum
     extra_information: str
-    # embedding: list[float]
 
     # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
     model_config = ConfigDict(from_attributes=True)
@@ -39,7 +38,6 @@ class UserUpdateRequest(UserBase):
     interest: Optional[CategoryEnum] = None
     purpose: Optional[PurposeEnum] = None
     extra_information: Optional[str] = None
-    # embedding: Optional[list[float]] = None
 
 
 # 프로필 조회 응답 (id까지 포함된 버전)
@@ -56,3 +54,4 @@ class UserCreateResponse(BaseModel):
 # 프로필 수정 시 응답 (최신 정보 포함)
 class UserUpdateResponse(UserBase):
     id: int
+    filtered_extra_information: Optional[str] = None

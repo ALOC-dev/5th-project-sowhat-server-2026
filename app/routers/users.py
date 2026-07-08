@@ -10,8 +10,9 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 # ── POST /api/users ────────────────────────────────────────
 # 성공 시 응답: 201 CREATED
 @router.post("", response_model=UserCreateResponse, status_code=201)
-def create_user(payload: UserCreateRequest, db: Session = Depends(get_db)):
-    return service.create_user(db, payload)
+async def create_user(payload: UserCreateRequest, db: Session = Depends(get_db)):
+    user = await service.create_user(db, payload)
+    return user
 
 
 # ── GET /api/users/{user_id} ─────────────────────────────────
@@ -22,7 +23,8 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 
 # ── PATCH /api/users/{user_id} ─────────────────────────────────
 @router.patch("/{user_id}", response_model=UserUpdateResponse)
-def modify_user(
+async def update_user(
     user_id: int, payload: UserUpdateRequest, db: Session = Depends(get_db)
 ):
-    return service.modify_user(db, user_id, payload)
+    user = await service.update_user(db, user_id, payload)
+    return user

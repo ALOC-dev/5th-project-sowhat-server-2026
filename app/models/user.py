@@ -22,6 +22,7 @@ class User(Base):
     interest = Column(Enum(CategoryEnum, name="category_enum"), nullable=True)
     purpose = Column(Enum(PurposeEnum, name="purpose_enum"), nullable=True)
     extra_information = Column(Text, nullable=True)
+    filtered_extra_information = Column(Text, nullable=True)
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
