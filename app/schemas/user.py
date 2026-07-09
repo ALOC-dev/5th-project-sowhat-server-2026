@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional
 
 from app.models.enums import (
@@ -28,6 +28,12 @@ class UserBase(BaseModel):
 # 회원가입 요청
 class UserCreateRequest(UserBase):
     pass
+
+
+# 회원가입 요청 (이메일/비밀번호 인증 포함)
+class SignupRequest(UserBase):
+    email: EmailStr
+    password: str = Field(min_length=8)
 
 
 # 정보수정 요청 (모든 필드를 선택적으로 변경 - Optional)
