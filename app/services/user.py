@@ -6,6 +6,7 @@ import app.crud.user as crud
 from app.models.user import User
 from app.schemas.user import UserCreateRequest, UserUpdateRequest
 from app.exceptions.domain import UserNotFoundError, InvalidArgumentError
+from app.services.llm_service import generate_user_profile_embedding
 
 USER_ENUM_FIELD_NAMES = ("gender", "region", "job", "interest", "purpose")
 
@@ -49,10 +50,22 @@ def _validate_create_user_payload(
         _validate_enum_value(getattr(payload, field_name), enum_class, field_name)
 
 
-def create_user(db: Session, payload: UserCreateRequest) -> User:
+# 가입 시점에 프로필 임베딩 생성
+# 실패해도 가입은 유지 (임베딩은 추천 시 lazy 생성되는 fallback 존재)
+async def attach_profile_embedding(db: Session, user: User) -> User:
+    try:
+        profile_embedding = await generate_user_profile_embedding(user)
+        user = crud.update_user(db, user.id, {"profile_embedding": profile_embedding})
+    except Exception as e:
+        print(f"프로필 임베딩 생성 실패 (user_id={user.id}): {e}")
+
+    return user
+
+
+async def create_user(db: Session, payload: UserCreateRequest) -> User:
     _validate_create_user_payload(payload)
     user = crud.create_user(db, payload.model_dump())
-    return user
+    return await attach_profile_embedding(db, user)
 
 
 def get_user(db: Session, user_id: int) -> User:
