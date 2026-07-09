@@ -30,6 +30,12 @@ class UserCreateRequest(UserBase):
     pass
 
 
+# 회원가입 요청 (이메일/비밀번호 인증 포함)
+class SignupRequest(UserBase):
+    email: EmailStr
+    password: str = Field(min_length=8)
+
+
 # 정보수정 요청 (모든 필드를 선택적으로 변경 - Optional)
 class UserUpdateRequest(UserBase):
     age: Optional[int] = None

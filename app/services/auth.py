@@ -3,16 +3,32 @@ from jose import JWTError
 from sqlalchemy.orm import Session
 
 import app.crud.user as crud
+import app.services.user as user_service
 from app.core.config import settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_access_token,
     decode_refresh_token,
+    hash_password,
     verify_password,
 )
+from app.exceptions.domain import DuplicateEmailError
 from app.models.user import User
-from app.schemas.user import LoginRequest
+from app.schemas.user import LoginRequest, SignupRequest
+
+
+async def signup(db: Session, payload: SignupRequest) -> User:
+    user_service._validate_create_user_payload(payload)
+
+    if crud.get_user_by_email(db, payload.email) is not None:
+        raise DuplicateEmailError()
+
+    user_data = payload.model_dump(exclude={"password"})
+    user_data["hashed_password"] = hash_password(payload.password)
+
+    user = crud.create_user(db, user_data)
+    return await user_service.attach_profile_embedding(db, user)
 
 
 def login(db: Session, payload: LoginRequest, response: Response):
@@ -155,6 +171,3 @@ def refresh(db: Session, request: Request, response: Response):
     )
 
     return {"message": "access token이 재발급되었습니다."}
-
-
-#   회원가입 구현 (지원언니)

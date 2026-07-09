@@ -2,7 +2,12 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.schemas.user import LoginRequest, UserGetResponse
+from app.schemas.user import (
+    LoginRequest,
+    SignupRequest,
+    UserCreateResponse,
+    UserGetResponse,
+)
 import app.services.auth as service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -37,8 +42,8 @@ def refresh(
     return service.refresh(db, request, response)
 
 
-#   회원가입 구현 (지원언니)
-
-@router.post("/signup")
-def signup():
-    pass
+# ── POST /api/auth/signup ────────────────────────────────────
+# 성공 시 응답: 201 CREATED (토큰 발급 없음, 로그인은 별도 진행)
+@router.post("/signup", response_model=UserCreateResponse, status_code=201)
+async def signup(payload: SignupRequest, db: Session = Depends(get_db)):
+    return await service.signup(db, payload)
