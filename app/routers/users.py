@@ -22,7 +22,8 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 
 # ── PATCH /api/users/{user_id} ─────────────────────────────────
 @router.patch("/{user_id}", response_model=UserUpdateResponse)
-def modify_user(
+async def update_user(
     user_id: int, payload: UserUpdateRequest, db: Session = Depends(get_db)
 ):
-    return service.modify_user(db, user_id, payload)
+    user = await service.update_user(db, user_id, payload)
+    return user

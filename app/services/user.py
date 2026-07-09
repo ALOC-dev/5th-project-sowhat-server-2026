@@ -4,9 +4,11 @@ from sqlalchemy.orm import Session
 
 import app.crud.user as crud
 from app.models.user import User
+from app.schemas.filtered_extra_information import FilteredExtraInformation
 from app.schemas.user import UserCreateRequest, UserUpdateRequest
 from app.exceptions.domain import UserNotFoundError, InvalidArgumentError
 from app.services.llm_service import generate_user_profile_embedding
+from app.services.llm_service import filter_user_extra_information
 
 USER_ENUM_FIELD_NAMES = ("gender", "region", "job", "interest", "purpose")
 
@@ -37,9 +39,7 @@ def _get_payload_field_annotation(
     return getattr(field, "annotation", None)
 
 
-def _validate_create_user_payload(
-    payload: UserCreateRequest | UserUpdateRequest,
-) -> None:
+def _validate_create_user_payload(payload: UserCreateRequest) -> None:
     _validate_natural_number(payload.age, "age")
 
     for field_name in USER_ENUM_FIELD_NAMES:
@@ -50,6 +50,26 @@ def _validate_create_user_payload(
         _validate_enum_value(getattr(payload, field_name), enum_class, field_name)
 
 
+def _validate_update_user_payload(payload: UserUpdateRequest) -> None:
+    if payload.age:
+        _validate_natural_number(payload.age, "age")
+
+    for field_name in USER_ENUM_FIELD_NAMES:
+        enum_class = _get_payload_field_annotation(payload, field_name)
+        if not isinstance(enum_class, type) or not issubclass(enum_class, Enum):
+            continue
+
+        _validate_enum_value(getattr(payload, field_name), enum_class, field_name)
+
+
+def _validate_user_extra_information(payload: FilteredExtraInformation) -> str:
+    if not payload.success:
+        raise InvalidArgumentError(
+            "사용자 입력란에는 개인정보 및 위험한 정보(범죄, 폭력, 혐오 발언 등)를 작성할 수 없습니다."
+        )
+    return payload.summary
+  
+  
 # 가입 시점에 프로필 임베딩 생성
 # 실패해도 가입은 유지 (임베딩은 추천 시 lazy 생성되는 fallback 존재)
 async def attach_profile_embedding(db: Session, user: User) -> User:
@@ -67,6 +87,21 @@ async def create_user(db: Session, payload: UserCreateRequest) -> User:
     user = crud.create_user(db, payload.model_dump())
     return await attach_profile_embedding(db, user)
 
+    create_data = payload.model_dump()
+
+    # llm 호출하여 필터링/요약된 문장 생성
+    filtered = await filter_user_extra_information(payload.extra_information)
+    summary = _validate_user_extra_information(filtered)
+    create_data.update(
+        {
+            "extra_information": payload.extra_information,
+            "filtered_extra_information": summary,
+        }
+    )  # dict에 원본 문장, 필터링된 문장 추가
+
+    user = crud.create_user(db, create_data)
+    return user
+
 
 def get_user(db: Session, user_id: int) -> User:
     user = crud.get_user_by_id(db, user_id)
@@ -75,29 +110,24 @@ def get_user(db: Session, user_id: int) -> User:
     return user
 
 
-def modify_user(db: Session, user_id: int, payload: UserUpdateRequest) -> User:
-    _validate_create_user_payload(payload)
-    user = crud.update_user(db, user_id, payload.model_dump())
+async def update_user(db: Session, user_id: int, payload: UserUpdateRequest) -> User:
+    _validate_update_user_payload(payload)
+
+    update_data = payload.model_dump(exclude_unset=True)  # dict 형태로 변환
+
+    # 수정하는 정보에 extra_information이 존재할 경우 llm 호출하여 필터링/요약된 문장 생성
+    if payload.extra_information is not None:
+        filtered = await filter_user_extra_information(payload.extra_information)
+        summary = _validate_user_extra_information(filtered)
+        update_data.update(
+            {
+                "extra_information": payload.extra_information,
+                "filtered_extra_information": summary,
+            }
+        )  # dict에 원본 문장, 필터링된 문장 추가
+
+    user = crud.update_user(db, user_id, update_data)
     if user is None:
         raise UserNotFoundError()
+
     return user
-
-
-# def update_user_interests(db: Session, user_id: int, article_id: int) -> User:
-
-#     user = get_user(db, user_id)
-
-#     import app.crud.article as article_crud
-
-#     article = article_crud.get_article_by_id(db, article_id)
-#     if article is None or not article.keyword:
-#         return user
-
-#     keywords = (
-#         [k.strip() for k in article.keyword.split(",")]
-#         if isinstance(article.keyword, str)
-#         else article.keyword
-#     )
-
-#     updated_user = crud.update_user_behavior_tags(db, user_id, keywords)
-#     return updated_user
