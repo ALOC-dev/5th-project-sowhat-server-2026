@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional
 
 from app.models.enums import (
@@ -29,6 +29,12 @@ class UserCreateRequest(UserBase):
     pass
 
 
+# 회원가입 요청 (이메일/비밀번호 인증 포함)
+class SignupRequest(UserBase):
+    email: EmailStr
+    password: str = Field(min_length=8)
+
+
 # 정보수정 요청 (모든 필드를 선택적으로 변경 - Optional)
 class UserUpdateRequest(UserBase):
     age: Optional[int] = None
@@ -54,4 +60,9 @@ class UserCreateResponse(BaseModel):
 # 프로필 수정 시 응답 (최신 정보 포함)
 class UserUpdateResponse(UserBase):
     id: int
-    filtered_extra_information: Optional[str] = None
+
+# 로그인 요청
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+    

@@ -7,6 +7,7 @@ from app.models.user import User
 from app.schemas.filtered_extra_information import FilteredExtraInformation
 from app.schemas.user import UserCreateRequest, UserUpdateRequest
 from app.exceptions.domain import UserNotFoundError, InvalidArgumentError
+from app.services.llm_service import generate_user_profile_embedding
 from app.services.llm_service import filter_user_extra_information
 
 USER_ENUM_FIELD_NAMES = ("gender", "region", "job", "interest", "purpose")
@@ -67,10 +68,24 @@ def _validate_user_extra_information(payload: FilteredExtraInformation) -> str:
             "사용자 입력란에는 개인정보 및 위험한 정보(범죄, 폭력, 혐오 발언 등)를 작성할 수 없습니다."
         )
     return payload.summary
+  
+  
+# 가입 시점에 프로필 임베딩 생성
+# 실패해도 가입은 유지 (임베딩은 추천 시 lazy 생성되는 fallback 존재)
+async def attach_profile_embedding(db: Session, user: User) -> User:
+    try:
+        profile_embedding = await generate_user_profile_embedding(user)
+        user = crud.update_user(db, user.id, {"profile_embedding": profile_embedding})
+    except Exception as e:
+        print(f"프로필 임베딩 생성 실패 (user_id={user.id}): {e}")
+
+    return user
 
 
 async def create_user(db: Session, payload: UserCreateRequest) -> User:
     _validate_create_user_payload(payload)
+    user = crud.create_user(db, payload.model_dump())
+    return await attach_profile_embedding(db, user)
 
     create_data = payload.model_dump()
 

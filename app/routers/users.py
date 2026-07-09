@@ -11,8 +11,7 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 # 성공 시 응답: 201 CREATED
 @router.post("", response_model=UserCreateResponse, status_code=201)
 async def create_user(payload: UserCreateRequest, db: Session = Depends(get_db)):
-    user = await service.create_user(db, payload)
-    return user
+    return await service.create_user(db, payload)
 
 
 # ── GET /api/users/{user_id} ─────────────────────────────────
