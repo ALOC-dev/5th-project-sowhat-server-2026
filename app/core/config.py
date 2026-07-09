@@ -18,5 +18,17 @@ class Settings:
     )
     DATABASE_URL = os.getenv(key="DATABASE_URL")
 
+    JWT_SECRET_KEY = os.getenv(key="JWT_SECRET_KEY", default="dev-secret-key")
+    JWT_ALGORITHM = os.getenv(key="JWT_ALGORITHM", default="HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES = int(
+        os.getenv(key="ACCESS_TOKEN_EXPIRE_MINUTES", default="30")
+    )
+
+    REFRESH_TOKEN_EXPIRE_DAYS = int(
+        os.getenv(key="REFRESH_TOKEN_EXPIRE_DAYS", default="7")
+    )
+
+    COOKIE_SECURE = os.getenv(key="COOKIE_SECURE", default="False").lower() == "true"
+    COOKIE_SAMESITE = os.getenv(key="COOKIE_SAMESITE", default="lax")
 
 settings = Settings()

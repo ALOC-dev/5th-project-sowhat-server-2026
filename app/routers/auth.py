@@ -1,24 +1,45 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.schemas.user import SignupRequest, UserCreateResponse
+from app.schemas.user import (
+    LoginRequest,
+    SignupRequest,
+    UserCreateResponse,
+    UserGetResponse,
+)
 import app.services.auth as service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# TODO:
-#   로그인 로그아웃 구현 (민우오빠)
-
 
 @router.post("/login")
-def login():
-    pass
+def login(
+    payload: LoginRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    return service.login(db, payload, response)
 
 
 @router.post("/logout")
-def logout():
-    pass
+def logout(response: Response):
+    return service.logout(response)
+
+@router.get("/me", response_model=UserGetResponse)
+def get_me(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return service.get_current_user(db, request)
+
+@router.post("/refresh")
+def refresh(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    return service.refresh(db, request, response)
 
 
 # ── POST /api/auth/signup ────────────────────────────────────
