@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional
 
 from app.models.enums import (
@@ -56,3 +56,9 @@ class UserCreateResponse(BaseModel):
 # 프로필 수정 시 응답 (최신 정보 포함)
 class UserUpdateResponse(UserBase):
     id: int
+
+
+# 로그인 요청
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
