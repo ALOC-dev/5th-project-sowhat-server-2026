@@ -24,8 +24,11 @@ class Settings:
         os.getenv(key="ACCESS_TOKEN_EXPIRE_MINUTES", default="30")
     )
 
+    REFRESH_TOKEN_EXPIRE_DAYS = int(
+        os.getenv(key="REFRESH_TOKEN_EXPIRE_DAYS", default="7")
+    )
+
     COOKIE_SECURE = os.getenv(key="COOKIE_SECURE", default="False").lower() == "true"
     COOKIE_SAMESITE = os.getenv(key="COOKIE_SAMESITE", default="lax")
-
 
 settings = Settings()

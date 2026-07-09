@@ -7,9 +7,6 @@ import app.services.auth as service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# TODO:
-#   로그인 로그아웃 구현 (민우오빠)
-
 
 @router.post("/login")
 def login(
@@ -30,6 +27,14 @@ def get_me(
     db: Session = Depends(get_db),
 ):
     return service.get_current_user(db, request)
+
+@router.post("/refresh")
+def refresh(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    return service.refresh(db, request, response)
 
 
 #   회원가입 구현 (지원언니)
