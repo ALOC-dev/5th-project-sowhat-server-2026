@@ -18,8 +18,13 @@ from app.schemas.personal_analysis import PersonalAnalysis
 
 
 async def generate_common_analysis(article: Article | dict) -> dict:
+    # SQLAlchemy 모델에는 model_dump()가 없으므로 필요한 필드만 꺼내 dict로 변환
     if type(article) is Article:
-        article = article.model_dump()
+        article = {
+            "title": article.title,
+            "category": article.category,
+            "content": article.content,
+        }
 
     prompt = COMMON_ANALYSIS_PROMPT.format(
         title=article["title"],
@@ -47,11 +52,16 @@ async def generate_common_analysis(article: Article | dict) -> dict:
 
     parsed = response.choices[0].message.parsed.model_dump()
 
+    # [{"word": ..., "description": ...}] -> {"단어": "뜻 설명"} dict로 변환
+    parsed["keyword"] = {
+        item["word"]: item["description"] for item in parsed["keyword"]
+    }
+
     """
     returns: dict
         {
             "summary": str,
-            # TODO: "keyword": dict(str, str) 추가
+            "keyword": dict[str, str],
         }
     """
     return parsed
@@ -129,8 +139,14 @@ async def filter_user_extra_information(
 # 기사 임베딩 생성 함수
 # LLM으로 생성된 기사 요약본을 통해 임베딩 생성
 async def generate_article_embedding(article: Article | dict) -> list[float]:
+    # SQLAlchemy 모델에는 model_dump()가 없으므로 필요한 필드만 꺼내 dict로 변환
     if type(article) is Article:
-        article = article.model_dump()
+        article = {
+            "title": article.title,
+            "category": article.category,
+            "content": article.content,
+            "summary": article.summary,
+        }
 
     # 기사 요약 불러오기, 없을 시 생성
     if article["summary"] is None:
