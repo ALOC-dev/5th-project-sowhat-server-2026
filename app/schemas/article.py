@@ -24,8 +24,8 @@ class ArticleDetailResponse(BaseModel):
     category: str
     content: str
     summary: str
-    # {"단어": "뜻 설명"} 형태의 키워드 JSON
-    keyword: dict[str, str] | None = None
+    # [{"word": "단어", "description": "뜻 설명"}] 형태의 키워드 JSON
+    keyword: list[dict[str, str]] | None = None
 
     # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
     model_config = ConfigDict(from_attributes=True)
