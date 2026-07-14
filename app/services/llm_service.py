@@ -115,25 +115,29 @@ async def generate_personal_analysis(article: Article, user: User) -> dict:
 async def filter_user_extra_information(
     extra_information: str,
 ) -> FilteredExtraInformation:
-    prompt = FILTER_EXTRA_INFORMATION_PROMPT.format(extra_information=extra_information)
+    normalized_information = extra_information.strip()
+
+    if not normalized_information:
+        return FilteredExtraInformation(
+            success=True,
+            summary="",
+        )
+
     response = await create_json_completion(
         messages=[
-            {"role": "system", "content": SYSTEM_JSON_PROMPT},
-            {"role": "user", "content": prompt},
+            {
+                "role": "developer",
+                "content": FILTER_EXTRA_INFORMATION_PROMPT,
+            },
+            {
+                "role": "user",
+                "content": normalized_information,
+            },
         ],
         response_format=FilteredExtraInformation,
     )
 
-    parsed = response.choices[0].message.parsed
-
-    """
-    returns: FilteredExtraInformation
-        {
-            "success": bool,
-            "summary": Optional[str],
-        }
-    """
-    return parsed
+    return response.choices[0].message.parsed
 
 
 # 기사 임베딩 생성 함수

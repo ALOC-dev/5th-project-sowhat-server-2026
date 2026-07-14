@@ -1,3 +1,12 @@
+from app.services.llm.openai_client import create_json_completion
+from app.crud.article import get_article_by_id
+from app.crud.user import get_user_by_id
+from app.db.database import SessionLocal
+
+from app.schemas.common_analysis import CommonAnalysis
+from app.schemas.personal_analysis import PersonalAnalysis
+from app.schemas.filtered_extra_information import FilteredExtraInformation
+
 SYSTEM_JSON_PROMPT = "모든 응답은 영어 약자 등 외래어 표기에 꼭 필요한 경우를 제외하고 한국어로 작성한다."
 
 COMMON_ANALYSIS_PROMPT = """
@@ -18,7 +27,7 @@ COMMON_ANALYSIS_PROMPT = """
 </요약문 작성 규칙>
 
 <키워드 작성 규칙>
-- '[{{'word': '키워드', 'description': '뜻 설명'}}]' 형식으로 키워드의 의미를 풀어 설명한다.
+- '{{'키워드': '설명'}}' 형식으로 키워드의 의미를 풀어 설명한다.
 - 키워드의 의미는 명사형으로 작성한다.
 - keyword는 기사 핵심과 직접 관련된 대표 용어 혹은 어려운 용어 1~3개를 작성한다.
 </키워드 작성 규칙>
@@ -68,6 +77,66 @@ PERSONAL_ANALYSIS_PROMPT = """
 </사용자 정보>
 """.strip()
 
+
+async def test_common_analysis_prompt():
+    db = SessionLocal()
+
+    test_article_id = 6
+
+    test_article = get_article_by_id(db, test_article_id)
+
+    prompt = COMMON_ANALYSIS_PROMPT.format(
+        title=test_article.title,
+        category=test_article.category,
+        content=test_article.content,
+    ).strip()
+
+    response = await create_json_completion(
+        messages=[
+            {"role": "system", "content": SYSTEM_JSON_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        response_format=CommonAnalysis,
+    )
+
+    print("\n[공통해설]")
+    print(response.choices[0].message.parsed.model_dump())
+
+
+async def test_personal_analysis_prompt():
+    db = SessionLocal()
+
+    test_article_id = 6
+    test_user_id = 1
+
+    test_article = get_article_by_id(db, test_article_id)
+    test_user = get_user_by_id(db, test_user_id)
+
+    prompt = PERSONAL_ANALYSIS_PROMPT.format(
+        title=test_article.title,
+        category=test_article.category,
+        content=test_article.content,
+        age=test_user.age,
+        gender=test_user.gender,
+        region=test_user.region,
+        job=test_user.job,
+        interest=test_user.interest,
+        purpose=test_user.purpose,
+        extra_information=test_user.filtered_extra_information,
+    ).strip()
+
+    response = await create_json_completion(
+        messages=[
+            {"role": "system", "content": SYSTEM_JSON_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        response_format=PersonalAnalysis,
+    )
+
+    print("\n[개인맞춤해설]")
+    print(response.choices[0].message.parsed.model_dump())
+
+
 FILTER_EXTRA_INFORMATION_PROMPT = """
 사용자가 입력한 추가 정보를 뉴스 해설 개인화에 사용할 수 있도록 검증하고 정리하라.
 
@@ -108,3 +177,33 @@ FILTER_EXTRA_INFORMATION_PROMPT = """
 - 남은 내용을 자연스러운 1~2문장으로 간결하게 정리한다.
 - 제거 후 남은 정보가 없으면 success=true, summary=""로 반환한다.
 """.strip()
+
+
+async def test_filtering_prompt():
+    test_extra_information_list = [
+        "취업 준비 중이라 IT 산업 뉴스에 관심이 많습니다. 아 근데, 내일 밥 뭐 먹지. 집 주소는 서울시 동대문구 어디어디구요. 채용 정보에 대한 뉴스를 많이 보고 싶습니다.",
+        "컴퓨터공학을 공부하고 있으며, 월월월 그르릉 안녕하세요 개 입니다, 경제 뉴스에 대한 이해가 부족한 편입니다.",
+        "투자에 관심이 있어 관련 뉴스와 분석을 보고 싶습니다. 제 계좌번호는 123-456-7890입니다.",
+    ]
+
+    for test_extra_information in test_extra_information_list:
+        response = await create_json_completion(
+            messages=[
+                {
+                    "role": "developer",
+                    "content": FILTER_EXTRA_INFORMATION_PROMPT,
+                },
+                {
+                    "role": "user",
+                    "content": test_extra_information.strip(),
+                },
+            ],
+            response_format=FilteredExtraInformation,
+        )
+
+        result = response.choices[0].message.parsed
+
+        print("\n[사용자 입력]")
+        print(test_extra_information)
+        print("[필터링 결과]")
+        print(result.model_dump())
