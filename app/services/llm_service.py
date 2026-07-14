@@ -53,9 +53,9 @@ async def generate_common_analysis(article: Article | dict) -> dict:
     parsed = response.choices[0].message.parsed.model_dump()
 
     # [{"word": ..., "description": ...}] -> {"단어": "뜻 설명"} dict로 변환
-    parsed["keyword"] = {
-        item["word"]: item["description"] for item in parsed["keyword"]
-    }
+    # parsed["keyword"] = {
+    #     item["word"]: item["description"] for item in parsed["keyword"]
+    # }
 
     """
     returns: dict
