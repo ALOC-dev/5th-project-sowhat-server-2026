@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Enum, Integer, String, Text
+from sqlalchemy import JSON, Column, DateTime, Enum, Integer, String, Text
 from sqlalchemy.sql import func
 from pgvector.sqlalchemy import Vector
 
@@ -20,7 +20,7 @@ class Article(Base):
     )
     content = Column(Text, nullable=False)
     summary = Column(Text, nullable=True)
-    keyword = Column(String(255), nullable=True)
+    keyword = Column(JSON, nullable=True)
     embedding = Column(Vector(1536), nullable=True)
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

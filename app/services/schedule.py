@@ -221,8 +221,9 @@ async def process_yonhap_rss(
 
                         analysis = {
                             "summary": "공통 해설 생성 실패",
-                            "keyword": "오류",
+                            "keyword": {},
                         }
+                        embedding = None
 
                     results.append(
                         {
