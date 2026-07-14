@@ -7,145 +7,134 @@ from app.schemas.common_analysis import CommonAnalysis
 from app.schemas.personal_analysis import PersonalAnalysis
 from app.schemas.filtered_extra_information import FilteredExtraInformation
 
-SYSTEM_JSON_PROMPT = (
-    "모든 응답은 json.loads()로 바로 파싱 가능한 JSON 형식이어야 한다. "
-    "JSON 외의 설명문, 코드블럭, 마크다운, 주석은 출력하지 마라."
-)
+SYSTEM_JSON_PROMPT = "모든 응답은 영어 약자 등 외래어 표기에 꼭 필요한 경우를 제외하고 한국어로 작성한다."
 
-# COMMON_ANALYSIS_PROMPT = """
-# 너는 뉴스 해설 서비스의 공통 해설 생성기다.
+COMMON_ANALYSIS_PROMPT = """
+너는 뉴스를 처음 접하는 독자도 이해할 수 있도록 어려운 기사를 쉽게 설명하는 뉴스 해설가다.
+목표는 입력된 뉴스 기사 정보를 바탕으로 독자가 핵심 내용을 빠르게 이해할 수 있도록 요약하고, 주요 키워드를 설명하는 것이다.
+반드시 아래 규칙을 지켜 뉴스를 해설해라.
 
-# 입력된 뉴스 기사 정보를 바탕으로, 모든 사용자가 공통적으로 이해할 수 있는 해설을 생성해야 한다.
+<요약문 작성 규칙>
+- 기사 핵심 내용을 최대 3문장 또는 200자 이내로 요약한다.
+- '~습니다' 체를 사용한다.
+- 고유명사는 그대로 유지한다.
+- 숫자와 수치는 기사에 있는 경우에만 유지한다.
+- 평가나 감정이 드러나는 표현을 사용하지 않는다.
+- 같은 의미를 반복하지 않는다.
+- 기사에 근거한 사실만 설명한다. 기사 본문에 없는 내용, 추론, 확대 해석은 추가하지 않는다.
+- 어려운 용어는 일상 용어로 바꾸거나 쉽게 풀어 설명한다.
+- 기사의 핵심 사건, 주체, 결과가 드러나도록 작성한다.
+</요약문 작성 규칙>
 
-# 반드시 아래 규칙을 지켜라.
+<키워드 작성 규칙>
+- '{{'키워드': '설명'}}' 형식으로 키워드의 의미를 풀어 설명한다.
+- 키워드의 의미는 명사형으로 작성한다.
+- keyword는 기사 핵심과 직접 관련된 대표 용어 혹은 어려운 용어 1~3개를 작성한다.
+</키워드 작성 규칙>
 
-# [목표]
-# 1. 기사 내용을 쉬운 말로 요약한다.
-# 2. 기사 이해에 가장 중요한 핵심 용어 1개를 선택한다.
+<기사 정보>
+제목: {title}
+카테고리: {category}
+본문: {content}
+</기사 정보>
+""".strip()
 
-# [작성 규칙]
-# - summary는 기사 핵심 내용을 최대 3문장 또는 200자 이내로 요약한다.
-# - 기사 본문에 없는 내용, 추론, 확대 해석은 추가하지 않는다.
-# - 원문을 단순 복붙하지 말고 자연스럽게 정리한다.
-# - 같은 의미를 반복하지 않는다.
-# - 어려운 표현은 쉬운 표현으로 바꾼다.
-# - keyword는 기사 핵심과 직접 관련된 용어 1개만 작성한다.
-# - keyword에는 설명을 포함하지 않는다.
-# - 문자열 내부에 큰따옴표(") 사용이 필요하면 작은따옴표(')로 대체한다.
-# - 반드시 아래 JSON 형식만 출력한다.
+PERSONAL_ANALYSIS_PROMPT = """
+너는 뉴스 기사와 사용자 정보를 연결하여, 해당 뉴스가 사용자에게 어떤 의미가 있는지 쉽게 설명하는 개인 맞춤형 뉴스 해설가이다.
+목표는 입력된 뉴스 기사 정보와 사용자 정보를 근거로 뉴스가 해당 사용자에게 미칠 수 있는 직접적인 영향과 사용자가 확인하거나 준비할 수 있는 대응 방안을 제시하는 것이다.
+반드시 아래 규칙을 지켜라.
 
-# [출력 형식]
-# {{
-#   "summary": "string",
-#   "keyword": "string"
-# }}
+<effect 작성 규칙>
+- 2~3문장 분량으로 작성한다.
+- 관련성이 낮은 경우에는 사용자 정보를 억지로 연결하거나 언급하지 않는다.
+- 투자, 법률, 의료 관련 판단을 단정적으로 제시하지 않는다.
+- 기사 원문에 없는 사실을 만들지 않는다.
+- <사용자 정보>에 없는 특성이나 상황을 추측하지 않는다.
+- 기사와 사용자 정보의 관련성이 충분할 때만 사용자 정보를 반영한다.
+</effect 작성 규칙>
 
-# [기사 정보]
-# 제목: {title}
-# 카테고리: {category}
-# 본문: {content}
-# """.strip()
+<solution 작성 규칙>
+- 2~3문장 분량으로 작성한다.
+- 기사와 무관한 일반적인 생활 조언은 하지 않는다.
+- 행동이 없다면 추가로 확인하면 좋은 정보나 기관을 안내한다.
+- 사용자가 실제로 바로 실행할 수 있는 행동을 제안한다.
+</solution 작성 규칙>
 
-# PERSONAL_ANALYSIS_PROMPT = """
-# 너는 뉴스 해설 서비스의 개인 맞춤 해설 생성기다.
+<기사 정보>
+제목: {title}
+카테고리: {category}
+본문: {content}
+</기사 정보>
 
-# 입력된 뉴스 기사 정보와 사용자 정보를 바탕으로, 해당 사용자에게 맞는 영향 분석과 대응 방안을 생성해야 한다.
-
-# 반드시 아래 규칙을 지켜라.
-
-# [목표]
-# 1. 뉴스가 이 사용자에게 어떤 영향을 주는지 설명한다.
-# 2. 사용자가 확인하거나 준비할 수 있는 대응 방안을 제시한다.
-
-# [작성 규칙]
-# - effect는 기사 내용과 사용자 정보를 연결해서 작성한다.
-# - 사용자와 관련성이 약하면 과장해서 연결하지 않는다.
-# - solution은 실제로 할 수 있는 행동 중심으로 작성한다.
-# - 기사 원문에 없는 사실을 만들지 않는다.
-# - 투자, 법률, 의료 관련 판단을 단정적으로 제시하지 않는다.
-# - effect와 solution은 각각 2~3문장으로 작성한다.
-# - 문자열 내부에 큰따옴표(") 사용이 필요하면 작은따옴표(')로 대체한다.
-# - 반드시 아래 JSON 형식만 출력한다.
-
-# [출력 형식]
-# {{
-#   "effect": "string",
-#   "solution": "string"
-# }}
-
-# [기사 정보]
-# 제목: {title}
-# 카테고리: {category}
-# 본문: {content}
-
-# [사용자 정보]
-# 나이: {age}
-# 성별: {gender}
-# 지역: {region}
-# 직업: {job}
-# 관심사: {interest}
-# 뉴스 소비 목적: {purpose}
-# 추가 정보: {extra_information}
-# """.strip()
+<사용자 정보>
+성별: {gender}
+나이: {age}
+직업: {job}
+지역: {region}
+추가 정보: {extra_information}
+뉴스 소비 목적: {purpose}
+관심사: {interest}
+</사용자 정보>
+""".strip()
 
 
-# async def test_common_analysis_prompt():
-#     db = SessionLocal()
+async def test_common_analysis_prompt():
+    db = SessionLocal()
 
-#     test_article_id = 1
+    test_article_id = 6
 
-#     test_article = get_article_by_id(db, test_article_id)
+    test_article = get_article_by_id(db, test_article_id)
 
-#     prompt = COMMON_ANALYSIS_PROMPT.format(
-#         title=test_article.title,
-#         category=test_article.category,
-#         content=test_article.content,
-#     ).strip()
+    prompt = COMMON_ANALYSIS_PROMPT.format(
+        title=test_article.title,
+        category=test_article.category,
+        content=test_article.content,
+    ).strip()
 
-#     response = await create_json_completion(
-#         messages=[
-#             {"role": "system", "content": SYSTEM_JSON_PROMPT},
-#             {"role": "user", "content": prompt},
-#         ],
-#         response_format=CommonAnalysis,
-#     )
+    response = await create_json_completion(
+        messages=[
+            {"role": "system", "content": SYSTEM_JSON_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        response_format=CommonAnalysis,
+    )
 
-#     print("[공통해설]")
-#     print(response.choices[0].message.parsed.model_dump())
+    print("\n[공통해설]")
+    print(response.choices[0].message.parsed.model_dump())
 
 
-# async def test_personal_analysis_prompt():
-#     db = SessionLocal()
+async def test_personal_analysis_prompt():
+    db = SessionLocal()
 
-#     test_article_id = 1
-#     test_user_id = 1
+    test_article_id = 6
+    test_user_id = 1
 
-#     test_article = get_article_by_id(db, test_article_id)
-#     test_user = get_user_by_id(db, test_user_id)
+    test_article = get_article_by_id(db, test_article_id)
+    test_user = get_user_by_id(db, test_user_id)
 
-#     prompt = PERSONAL_ANALYSIS_PROMPT.format(
-#         title=test_article.title,
-#         category=test_article.category,
-#         content=test_article.content,
-#         age=test_user.age,
-#         gender=test_user.gender,
-#         region=test_user.region,
-#         job=test_user.job,
-#         interest=test_user.interest,
-#         purpose=test_user.purpose,
-#         extra_information=test_user.filtered_extra_information,
-#     ).strip()
+    prompt = PERSONAL_ANALYSIS_PROMPT.format(
+        title=test_article.title,
+        category=test_article.category,
+        content=test_article.content,
+        age=test_user.age,
+        gender=test_user.gender,
+        region=test_user.region,
+        job=test_user.job,
+        interest=test_user.interest,
+        purpose=test_user.purpose,
+        extra_information=test_user.filtered_extra_information,
+    ).strip()
 
-#     response = await create_json_completion(
-#         messages=[
-#             {"role": "system", "content": SYSTEM_JSON_PROMPT},
-#             {"role": "user", "content": prompt},
-#         ],
-#         response_format=PersonalAnalysis,
-#     )
+    response = await create_json_completion(
+        messages=[
+            {"role": "system", "content": SYSTEM_JSON_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        response_format=PersonalAnalysis,
+    )
 
-#     print("[개인맞춤해설]")
-#     print(response.choices[0].message.parsed.model_dump())
+    print("\n[개인맞춤해설]")
+    print(response.choices[0].message.parsed.model_dump())
 
 
 FILTER_EXTRA_INFORMATION_PROMPT = """
@@ -194,7 +183,7 @@ async def test_filtering_prompt():
     test_extra_information_list = [
         "취업 준비 중이라 IT 산업 뉴스에 관심이 많습니다. 아 근데, 내일 밥 뭐 먹지. 집 주소는 서울시 동대문구 어디어디구요. 채용 정보에 대한 뉴스를 많이 보고 싶습니다.",
         "컴퓨터공학을 공부하고 있으며, 월월월 그르릉 안녕하세요 개 입니다, 경제 뉴스에 대한 이해가 부족한 편입니다.",
-        "투자에 관심이 있어 관련 뉴스와 분석을 보고 싶습니다. 제 계좌번호는 123-456-7890입니다."
+        "투자에 관심이 있어 관련 뉴스와 분석을 보고 싶습니다. 제 계좌번호는 123-456-7890입니다.",
     ]
 
     for test_extra_information in test_extra_information_list:
