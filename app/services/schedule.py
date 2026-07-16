@@ -11,7 +11,7 @@ import aiohttp
 import feedparser
 from bs4 import BeautifulSoup
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import app.crud.article as article_crud
 from app.exceptions.infrastructure import DatabaseError, ExternalAPIError
@@ -219,6 +219,16 @@ async def process_yonhap_rss(
                                 "summary": analysis["summary"],
                             }
                         )
+
+                        # TODO: 구현 끝났고 테스트 해야됨
+                        if embedding and article_crud.exists_similar_article(
+                            db,
+                            datetime.now() - timedelta(hours=24),
+                            embedding,
+                            0.97,
+                        ):
+                            print(f"[SKIP] 유사한 기사")
+                            continue
 
                     except Exception as exc:
                         print(f"[ERROR] 공통 해설 생성 실패: {exc}")

@@ -63,7 +63,7 @@ async def recommend_by_cosine_similarity(db: Session, user: User) -> list[Articl
     final_user_embedding /= np.linalg.norm(final_user_embedding)
 
     # 6. 결합된 하이브리드 벡터로 코사인 유사도가 높은 상위 20개 반환
-    return article_crud.get_articles_by_cosine_similarity(
+    return article_crud.find_similar_articles(
         db=db,
         date=recent_24_hours,
         user_embedding=final_user_embedding,

@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.models.article import Article
-from sqlalchemy import select
+from sqlalchemy import exists, select
 
 
 def create_article(db: Session, payload: dict) -> Article:
@@ -50,17 +50,17 @@ def get_articles_by_date(db: Session, date: datetime) -> list[Article]:
     return db.query(Article).filter(Article.published_at >= date).all()
 
 
-def get_articles_by_cosine_similarity(
+def find_similar_articles(
     db: Session,
     date: datetime,
     user_embedding: list[float],
-    limit: int,
+    top_k: int,
 ) -> list[Article]:
     stmt = (
         select(Article)
         .where(Article.published_at >= date)
         .order_by(Article.embedding.cosine_distance(user_embedding))
-        .limit(limit)
+        .limit(top_k)
     )
     return db.execute(stmt).scalars().all()
 
@@ -73,16 +73,28 @@ def get_article_by_source_url(db: Session, source_url: str) -> Article:
     return db.query(Article).filter(Article.source_url == source_url).first()
 
 
+def exists_similar_article(
+    db: Session,
+    date: datetime,
+    article_embedding: list[float],
+    threshold: float = 0.97,
+) -> float:
+    stmt = (
+        select(exists())
+        .where(
+            Article.published_at >= date
+            and Article.embedding.cosine_distance(article_embedding) >= threshold
+        )
+        .limit(1)
+    )
+    return db.execute(stmt).scalar()
+
+
 def update_article_by_id(db: Session, article_id: int, payload: dict) -> Article:
     article = db.query(Article).filter(Article.id == article_id).first()
 
     if article is None:
         return None
-
-    # if type(payload) is dict:
-    #     update_data = payload
-    # else:
-    #     update_data = payload.model_dump(exclude_unset=True)
 
     for key, value in payload.items():
         setattr(article, key, value)
