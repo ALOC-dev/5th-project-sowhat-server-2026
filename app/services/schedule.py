@@ -42,8 +42,8 @@ YONHAP_CATEGORY_MAP = {
     "연합뉴스(정치)": CategoryEnum.POLITICS,
     "연합뉴스(경제)": CategoryEnum.ECONOMY,
     "연합뉴스(사회)": CategoryEnum.SOCIETY,
-    # CategoryEnum에 INDUSTRY, WORLD가 없으면 임시로 SOCIETY 처리
-    "연합뉴스(산업/IT)": CategoryEnum.SOCIETY,
+    "연합뉴스(산업/IT)": CategoryEnum.INDUSTRY_IT,
+    # 세계뉴스는 임시로 SOCIETY 처리
     "연합뉴스(세계)": CategoryEnum.SOCIETY,
 }
 
@@ -196,6 +196,10 @@ async def process_yonhap_rss(
                 content = await fetch_yonhap_body(session, source_url)
 
                 if content:
+                    if len(content) < 500:
+                        print(f"[SKIP] 본문 길이가 짧음 ({len(content)}자)")
+                        continue
+
                     print(f"[OK]   본문 {len(content)}자 수집 완료")
 
                     try:
