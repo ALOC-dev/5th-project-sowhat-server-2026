@@ -56,7 +56,10 @@ async def get_common_analysis(db: Session, article_id: int) -> Article:
         article = article_crud.update_article_by_id(
             db,
             article_id,
-            common_analysis,
+            {
+                "summary": common_analysis["summary"],
+                "keyword": common_analysis["keyword"],
+            },
         )
 
     return article

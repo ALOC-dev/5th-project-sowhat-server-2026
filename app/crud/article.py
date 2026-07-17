@@ -79,14 +79,13 @@ def exists_similar_article(
     article_embedding: list[float],
     threshold: float = 0.97,
 ) -> float:
-    stmt = (
-        select(exists())
-        .where(
-            Article.published_at >= date
-            and Article.embedding.cosine_distance(article_embedding) >= threshold
+    stmt = select(
+        exists().where(
+            (Article.published_at >= date)
+            & (Article.embedding.cosine_distance(article_embedding) >= threshold)
         )
-        .limit(1)
     )
+
     return db.execute(stmt).scalar()
 
 

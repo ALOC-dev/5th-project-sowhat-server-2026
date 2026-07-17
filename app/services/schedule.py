@@ -43,8 +43,8 @@ YONHAP_CATEGORY_MAP = {
     "연합뉴스(경제)": CategoryEnum.ECONOMY,
     "연합뉴스(사회)": CategoryEnum.SOCIETY,
     "연합뉴스(산업/IT)": CategoryEnum.INDUSTRY_IT,
-    # 세계뉴스는 임시로 SOCIETY 처리
-    "연합뉴스(세계)": CategoryEnum.SOCIETY,
+    # 세계뉴스는 임시로 None 처리
+    "연합뉴스(세계)": None,
 }
 
 
@@ -186,7 +186,7 @@ async def process_yonhap_rss(
                 print(f"[URL]  {source_url}")
                 print(f"[발행일자]  {published_at}")
                 print(f"[기자]  {reporter}")
-                print(f"[카테고리] {category.value}")
+                print(f"[카테고리] {category.value if category else "None"}")
 
                 # DB 중복 검사
                 if article_crud.get_article_by_source_url(db, source_url):
@@ -207,9 +207,21 @@ async def process_yonhap_rss(
                             {
                                 "title": title,
                                 "content": content,
-                                "category": category.value,
+                                "category": (category.value if category else ""),
                             }
                         )
+
+                        print("[LOG]  success: " + str(analysis["success"]))
+                        print("[LOG] category: " + analysis["category"])
+                        print("[LOG]  summary: " + analysis["summary"])
+
+                        if analysis["success"] == False:
+                            print(f"[SKIP]  카테고리 이외 기사")
+                            continue
+
+                        # 세계 뉴스에서 LLM으로 분류된 카테고리 반영
+                        if analysis["category"] is not None:
+                            category = CategoryEnum[analysis["category"]]
 
                         embedding = await generate_article_embedding(
                             {
@@ -221,11 +233,14 @@ async def process_yonhap_rss(
                         )
 
                         # TODO: 구현 끝났고 테스트 해야됨
-                        if embedding and article_crud.exists_similar_article(
-                            db,
-                            datetime.now() - timedelta(hours=24),
-                            embedding,
-                            0.97,
+                        if (
+                            embedding is not None
+                            and article_crud.exists_similar_article(
+                                db,
+                                datetime.now() - timedelta(hours=24),
+                                embedding,
+                                0.95,
+                            )
                         ):
                             print(f"[SKIP] 유사한 기사")
                             continue
