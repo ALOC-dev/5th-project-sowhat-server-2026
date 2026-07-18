@@ -78,52 +78,52 @@ def get_article_by_source_url(db: Session, source_url: str) -> Article:
 def exists_similar_article(
     db: Session,
     date: datetime,
-    article_embedding: list[float],
+    source_url: str,
+    embedding: list[float],
     threshold: float = 0.05,
 ) -> float:
     stmt = select(
         exists().where(
-            (Article.published_at >= date)
-            & (Article.embedding.cosine_distance(article_embedding) <= threshold)
+            (Article.source_url != source_url)
+            & (Article.published_at >= date)
+            & (Article.embedding.cosine_distance(embedding) <= threshold)
         )
     )
     return db.execute(stmt).scalar()
 
 
-def test_exists_similar_article(
+# sqlite 테스트용 함수
+def get_highest_similarity(
     db: Session,
     date: datetime,
-    article_embedding: list[float],
-    threshold: float = 0.05,
-) -> float:
-    stmt = select(
-        exists().where(
-            (Article.published_at >= date)
-            & (Article.embedding.cosine_distance(article_embedding) <= threshold)
+    source_url: str,
+    embedding: list[float],
+):
+    # sqlite는 pgvector의 cosine_distance 연산을 지원하지 않으므로
+    # 후보 기사를 파이썬으로 가져와 코사인 유사도를 직접 계산한다.
+    candidates = (
+        db.query(Article)
+        .filter(
+            Article.source_url != source_url,
+            Article.published_at >= date,
+            Article.embedding.isnot(None),
         )
+        .all()
     )
 
-    # return db.execute(stmt).scalar()
+    if not candidates:
+        return 0
 
-    # Test
-    result = db.execute(stmt).scalar()
+    query_vec = np.array(embedding).reshape(1, -1)
+    candidate_vecs = np.array([c.embedding for c in candidates])
+    # DB에 float32로 저장됐다 복원되며 발생하는 부동소수점 오차로
+    # 코사인 유사도가 1을 미세하게 초과할 수 있어 clip으로 보정한다.
+    similarities = np.clip(cosine_similarity(query_vec, candidate_vecs)[0], -1.0, 1.0)
 
-    stmt2 = (
-        select(Article)
-        .where(Article.published_at >= date)
-        .order_by(Article.embedding.cosine_distance(article_embedding))
-        .limit(1)
-    )
-    most_similar = db.execute(stmt2).scalars().first()
-    if most_similar is not None:
-        similarity = cosine_similarity(
-            np.array(article_embedding).reshape(1, -1),
-            np.array(most_similar.embedding).reshape(1, -1),
-        )
-    else:
-        similarity = 0
+    best_idx = int(np.argmax(similarities))
+    similarity = float(similarities[best_idx])
 
-    return result, similarity
+    return similarity
 
 
 def update_article_by_id(db: Session, article_id: int, payload: dict) -> Article:

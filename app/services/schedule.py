@@ -236,13 +236,16 @@ async def process_yonhap_rss(
                             }
                         )
 
+                        ## 테스트할 때 주석처리하기
+                        ## 유사도 지나치게 높은 기사 필터링
                         if (
                             embedding is not None
                             and article_crud.exists_similar_article(
                                 db,
                                 datetime.now() - timedelta(hours=24),
+                                source_url,  # DB 저장 전 id가 주어지지 않은 시점에서는 source_url(unique not null)로 구분
                                 embedding,
-                                0.05,  # 유사도 기준 수정 필요
+                                0.1,  # 유사도 기준 수정 필요
                             )
                         ):
                             print(f"[SKIP] 유사한 기사")
