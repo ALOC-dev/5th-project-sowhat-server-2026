@@ -52,13 +52,11 @@ async def test_irrelevant_articles():
         r = results[i]
 
         if r["embedding"] is not None:
-            article = get_article_by_source_url(db, r["source_url"])
-
             highest_similarity = get_highest_similarity(
                 db,
                 datetime.now() - timedelta(hours=24),
-                article.id,
-                article.embedding,
+                r["source_url"],
+                r["embedding"],
             )
 
             print(f"[LOG {i}]  유사도: " + str(highest_similarity))
