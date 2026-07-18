@@ -6,7 +6,6 @@ from app.schemas.user import (
     LoginRequest,
     SignupRequest,
     UserCreateResponse,
-    UserGetResponse,
 )
 import app.services.auth as service
 
@@ -26,12 +25,6 @@ def login(
 def logout(response: Response):
     return service.logout(response)
 
-@router.get("/me", response_model=UserGetResponse)
-def get_me(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    return service.get_current_user(db, request)
 
 @router.post("/refresh")
 def refresh(
