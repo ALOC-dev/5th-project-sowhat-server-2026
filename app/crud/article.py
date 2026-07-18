@@ -1,6 +1,8 @@
 from datetime import datetime
 
 from sqlalchemy.orm import Session
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 from app.models.article import Article
 from sqlalchemy import exists, select
@@ -77,16 +79,51 @@ def exists_similar_article(
     db: Session,
     date: datetime,
     article_embedding: list[float],
-    threshold: float = 0.97,
+    threshold: float = 0.05,
 ) -> float:
     stmt = select(
         exists().where(
             (Article.published_at >= date)
-            & (Article.embedding.cosine_distance(article_embedding) >= threshold)
+            & (Article.embedding.cosine_distance(article_embedding) <= threshold)
+        )
+    )
+    return db.execute(stmt).scalar()
+
+
+def test_exists_similar_article(
+    db: Session,
+    date: datetime,
+    article_embedding: list[float],
+    threshold: float = 0.05,
+) -> float:
+    stmt = select(
+        exists().where(
+            (Article.published_at >= date)
+            & (Article.embedding.cosine_distance(article_embedding) <= threshold)
         )
     )
 
-    return db.execute(stmt).scalar()
+    # return db.execute(stmt).scalar()
+
+    # Test
+    result = db.execute(stmt).scalar()
+
+    stmt2 = (
+        select(Article)
+        .where(Article.published_at >= date)
+        .order_by(Article.embedding.cosine_distance(article_embedding))
+        .limit(1)
+    )
+    most_similar = db.execute(stmt2).scalars().first()
+    if most_similar is not None:
+        similarity = cosine_similarity(
+            np.array(article_embedding).reshape(1, -1),
+            np.array(most_similar.embedding).reshape(1, -1),
+        )
+    else:
+        similarity = 0
+
+    return result, similarity
 
 
 def update_article_by_id(db: Session, article_id: int, payload: dict) -> Article:

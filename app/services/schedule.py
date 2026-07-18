@@ -13,6 +13,8 @@ from bs4 import BeautifulSoup
 import time
 from datetime import datetime, timedelta
 
+from sqlalchemy.orm import Session
+
 import app.crud.article as article_crud
 from app.exceptions.infrastructure import DatabaseError, ExternalAPIError
 from app.db.database import SessionLocal
@@ -148,12 +150,13 @@ async def process_yonhap_rss(
     category_name: str,
     rss_url: str,
     max_articles: int | None = MAX_ARTICLES_PER_FEED,
+    db: Session = SessionLocal(),
 ) -> list[dict]:
 
     print("=" * 60)
     print(f"[START] {category_name}: RSS 수집 시작")
 
-    db = SessionLocal()
+    # db = SessionLocal()
 
     try:
         entries = await fetch_rss_entries(rss_url)
@@ -167,7 +170,7 @@ async def process_yonhap_rss(
 
         results: list[dict] = []
 
-        category = YONHAP_CATEGORY_MAP.get(category_name, CategoryEnum.SOCIETY)
+        category = YONHAP_CATEGORY_MAP.get(category_name, None)
 
         async with aiohttp.ClientSession() as session:
             for entry in target_entries:
@@ -211,6 +214,7 @@ async def process_yonhap_rss(
                             }
                         )
 
+                        # Test
                         print("[LOG]  success: " + str(analysis["success"]))
                         print("[LOG] category: " + analysis["category"])
                         print("[LOG]  summary: " + analysis["summary"])
@@ -232,14 +236,13 @@ async def process_yonhap_rss(
                             }
                         )
 
-                        # TODO: 구현 끝났고 테스트 해야됨
                         if (
                             embedding is not None
                             and article_crud.exists_similar_article(
                                 db,
                                 datetime.now() - timedelta(hours=24),
                                 embedding,
-                                0.95,
+                                0.05,  # 유사도 기준 수정 필요
                             )
                         ):
                             print(f"[SKIP] 유사한 기사")
@@ -284,8 +287,8 @@ async def process_yonhap_rss(
     except Exception as exc:
         raise DatabaseError(f"기사 정보 저장 실패: {exc}")
 
-    finally:
-        db.close()
+    # finally:
+    #     db.close()
 
 
 # 모든 카테고리에 대해 RSS 피드 수집
