@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from datetime import datetime
@@ -33,16 +33,25 @@ async def get_recommended_articles(
 # 호출될 시 사용자가 뉴스를 조회한 것을 누적 태그 점수에 반영
 @router.get("/analysis", response_model=PersonalAnalysis)
 async def get_analysis(
+    background_tasks: BackgroundTasks,
     article_id: int = Query(alias="article-id"),
     user_id: int = Query(alias="user-id"),
     db: Session = Depends(get_db),
 ):
-    analysis = await service.get_personal_analysis(db, article_id, user_id)
+    analysis = await service.get_personal_analysis(
+        db, article_id, user_id, background_tasks
+    )
     return analysis
 
 
 # ── GET /articles/{article_id} ────────────────────────────
 @router.get("/{article_id}", response_model=ArticleDetailResponse)
-async def get_article(article_id: int, db: Session = Depends(get_db)):
-    article_detail = await service.get_common_analysis(db, article_id)
+async def get_article(
+    article_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    article_detail = await service.get_common_analysis(
+        db, article_id, background_tasks
+    )
     return article_detail

@@ -28,7 +28,12 @@ def setup_and_teardown_db():
 
 # ── 3. TestClient 및 DB 오버라이드 Fixture ─────────────────────
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    # 앱 시작(lifespan) 시 실제 크롤링이 돌지 않도록 무력화
+    async def no_crawling(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr("app.main.run_yonhap_crawling_periodically", no_crawling)
 
     def override_get_db():
         db = TestingSessionLocal()

@@ -63,9 +63,9 @@ def test_personal_analysis_prompt_contains_user_profile():
 
 # 공통 해설 LLM 함수 테스트
 # 실제 OpenAI 호출 없이 monkeypatch로 가짜 응답을 넣고
-# keyword가 {"단어": "뜻 설명"} dict로 변환되는지 확인
+# keyword가 [{"word": ..., "description": ...}] 리스트로 반환되는지 확인
 @pytest.mark.asyncio
-async def test_generate_common_analysis_returns_keyword_dict(monkeypatch):
+async def test_generate_common_analysis_returns_keyword_list(monkeypatch):
     fake_parsed = CommonAnalysis(
         summary="국내 증시 변동성이 커지면서 개인 투자자들의 관심이 높아지고 있다.",
         keyword=[
@@ -103,10 +103,10 @@ async def test_generate_common_analysis_returns_keyword_dict(monkeypatch):
     )
 
     assert result["summary"] == fake_parsed.summary
-    assert result["keyword"] == {
-        "증시": "주식을 사고파는 시장을 말한다.",
-        "변동성": "가격이 오르내리는 정도를 말한다.",
-    }
+    assert result["keyword"] == [
+        {"word": "증시", "description": "주식을 사고파는 시장을 말한다."},
+        {"word": "변동성", "description": "가격이 오르내리는 정도를 말한다."},
+    ]
 
 
 # 개인 맞춤 해설 LLM 함수 테스트
