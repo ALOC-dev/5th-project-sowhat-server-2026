@@ -1,19 +1,20 @@
+from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
 
 import app.crud.article as article_crud
 import app.crud.personal_analysis as personal_crud
 import app.crud.user as user_crud
 from datetime import datetime, timedelta
-import numpy as np
 
 from app.models.article import Article
-from app.models.user import User
 from app.exceptions.domain import ArticleNotFoundError, UserNotFoundError
+from app.services.embedding_tasks import (
+    ensure_article_embedding,
+    update_behavior_embedding,
+)
 from app.services.llm_service import (
     generate_common_analysis,
     generate_personal_analysis,
-    generate_article_embedding,
-    generate_user_profile_embedding,
 )
 from app.services.recommend import recommend_by_cosine_similarity
 
@@ -43,7 +44,9 @@ async def get_recommended_articles(db: Session, user_id: int) -> list[Article]:
     return top_20_articles
 
 
-async def get_common_analysis(db: Session, article_id: int) -> Article:
+async def get_common_analysis(
+    db: Session, article_id: int, background_tasks: BackgroundTasks
+) -> Article:
     article = article_crud.get_article_by_id(db, article_id)
 
     if article is None:
@@ -59,10 +62,16 @@ async def get_common_analysis(db: Session, article_id: int) -> Article:
             common_analysis,
         )
 
+    # 기사 임베딩은 당장 필요하지 않으므로 응답 후 백그라운드에서 생성
+    if article.embedding is None:
+        background_tasks.add_task(ensure_article_embedding, article_id)
+
     return article
 
 
-async def get_personal_analysis(db: Session, article_id: int, user_id: int) -> dict:
+async def get_personal_analysis(
+    db: Session, article_id: int, user_id: int, background_tasks: BackgroundTasks
+) -> dict:
     article = article_crud.get_article_by_id(db, article_id)
 
     if article is None:
@@ -94,39 +103,8 @@ async def get_personal_analysis(db: Session, article_id: int, user_id: int) -> d
         },
     )
 
-    # if user.behavior_embedding and article.embedding:
-    #     updated_behavior = [
-    #         (b_val * 0.9) + (a_val * 0.1)
-    #         for b_val, a_val in zip(user.behavior_embedding, article.embedding)
-    #     ]
-    #     user_crud.update_user(db, user.id, {"behavior_embedding": updated_behavior})
-
-    ### 사용자가 클릭한 기사 정보를 반영하여 행동 임베딩 업데이트
-
-    # 사용자의 행동 임베딩 불러오기, 없을 시 프로필 임베딩으로 설정
-    if user.behavior_embedding is None:
-        # 프로필 임베딩이 없을 시 새로 생성
-        if user.profile_embedding is None:
-            profile_embedding = await generate_user_profile_embedding(user)
-            user_crud.update_user(db, user_id, {"profile_embedding": profile_embedding})
-            behavior_embedding = profile_embedding
-        else:
-            behavior_embedding = user.profile_embedding
-    else:
-        behavior_embedding = user.behavior_embedding
-
-    # 기사 임베딩 불러오기, 없을 시 생성
-    if article.embedding is None:
-        article_embedding = await generate_article_embedding(article)
-        article_crud.update_article_by_id(
-            db, article_id, {"embedding": article_embedding}
-        )
-    else:
-        article_embedding = article.embedding
-
-    # 기존 임베딩 : 새로 추가될 기사 임베딩의 반영 비율을 0.9: 0.1로 정하고 가중합
-    behavior_embedding = behavior_embedding * 0.9 + article_embedding * 0.1
-    behavior_embedding /= np.linalg.norm(behavior_embedding)  # 정규화
-    user_crud.update_user(db, user_id, {"behavior_embedding": behavior_embedding})
+    # 행동 임베딩 업데이트(필요 시 프로필/기사 임베딩 생성 포함)는
+    # 당장 필요하지 않으므로 응답 후 백그라운드에서 처리
+    background_tasks.add_task(update_behavior_embedding, user_id, article_id)
 
     return personal_analysis

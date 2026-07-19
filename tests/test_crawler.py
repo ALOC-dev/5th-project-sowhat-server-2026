@@ -1,8 +1,11 @@
+import time
+
 import pytest
 import aiohttp
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from aioresponses import aioresponses
 
+from app.exceptions.infrastructure import ExternalAPIError
 from app.services.schedule import (
     fetch_yonhap_body,
     fetch_rss_entries,
@@ -190,71 +193,104 @@ class TestFetchRssEntries:
 
         assert entries == []
 
-    async def test_네트워크_예외시_빈_리스트_반환(self):
+    async def test_네트워크_예외시_ExternalAPIError_발생(self):
         with aioresponses() as mock:
             mock.get(
                 "https://fake-rss.com/error.xml",
                 exception=aiohttp.ClientConnectionError("연결 실패"),
             )
-            entries = await fetch_rss_entries("https://fake-rss.com/error.xml")
+            with pytest.raises(ExternalAPIError):
+                await fetch_rss_entries("https://fake-rss.com/error.xml")
 
-        assert entries == []
+
+# RSS 엔트리 가짜 데이터 (feedparser 엔트리처럼 .get()으로 접근 가능한 dict)
+def make_entry(i: int) -> dict:
+    return {
+        "title": f"기사{i}",
+        "link": f"https://www.yna.co.kr/article/{i}",
+        "published_parsed": time.struct_time((2026, 7, 16, 12, 0, 0, 2, 197, 0)),
+        "author": "홍길동",
+    }
+
+
+# 실제 DB/LLM에 접근하지 않도록 process_yonhap_rss의 외부 의존성을 대체
+@pytest.fixture
+def mock_process_deps():
+    with (
+        patch("app.services.schedule.SessionLocal"),
+        patch("app.services.schedule.article_crud") as article_crud,
+        patch(
+            "app.services.schedule.generate_common_analysis",
+            new=AsyncMock(return_value={"summary": "요약", "keyword": []}),
+        ),
+        patch(
+            "app.services.schedule.generate_article_embedding",
+            new=AsyncMock(return_value=[0.0] * 1536),
+        ),
+        patch("app.services.schedule.asyncio.sleep"),
+    ):
+        article_crud.get_article_by_source_url.return_value = None  # 중복 기사 없음
+        yield article_crud
 
 
 class TestProcessYonhapRss:
 
-    async def test_정상_수집(self):
-        fake_entries = [
-            MagicMock(title="기사1", link="https://www.yna.co.kr/article/1"),
-            MagicMock(title="기사2", link="https://www.yna.co.kr/article/2"),
-        ]
+    async def test_정상_수집(self, mock_process_deps):
+        fake_entries = [make_entry(1), make_entry(2)]
         with (
             patch("app.services.schedule.fetch_rss_entries", return_value=fake_entries),
             patch(
                 "app.services.schedule.fetch_yonhap_body", return_value="본문 텍스트"
             ),
-            patch("app.services.schedule.asyncio.sleep"),
         ):
             results = await process_yonhap_rss("테스트", "https://fake.com/rss.xml")
 
         assert len(results) == 2
-        print(results[0]["title"])
-        print(results[0]["content"])
-        assert results[0]["media"] == "연합뉴스"
+        assert results[0]["title"] == "기사1"
+        assert results[0]["content"] == "본문 텍스트"
+        assert results[0]["publisher"] == "연합뉴스"
 
-    async def test_RSS_비어있으면_빈_리스트_반환(self):
+    async def test_RSS_비어있으면_빈_리스트_반환(self, mock_process_deps):
         with patch("app.services.schedule.fetch_rss_entries", return_value=[]):
             results = await process_yonhap_rss("테스트", "https://fake.com/rss.xml")
 
         assert results == []
 
-    async def test_본문_수집_실패한_기사는_결과에서_제외(self):
-        fake_entries = [
-            MagicMock(title="성공 기사", link="https://www.yna.co.kr/article/ok"),
-            MagicMock(title="실패 기사", link="https://www.yna.co.kr/article/fail"),
-        ]
+    async def test_본문_수집_실패한_기사는_결과에서_제외(self, mock_process_deps):
+        fake_entries = [make_entry(1), make_entry(2)]
         with (
             patch("app.services.schedule.fetch_rss_entries", return_value=fake_entries),
             patch(
                 "app.services.schedule.fetch_yonhap_body",
                 side_effect=["본문 텍스트", ""],
             ),
-            patch("app.services.schedule.asyncio.sleep"),
         ):
             results = await process_yonhap_rss("테스트", "https://fake.com/rss.xml")
 
         assert len(results) == 1
-        print(results[0]["title"])
+        assert results[0]["title"] == "기사1"
 
-    async def test_max_articles_제한(self):
-        fake_entries = [
-            MagicMock(title=f"기사{i}", link=f"https://www.yna.co.kr/article/{i}")
-            for i in range(5)
-        ]
+    async def test_발행일자_없는_기사는_제외(self, mock_process_deps):
+        entry_without_date = {
+            "title": "발행일자 없는 기사",
+            "link": "https://www.yna.co.kr/article/no-date",
+        }
+        with (
+            patch(
+                "app.services.schedule.fetch_rss_entries",
+                return_value=[entry_without_date],
+            ),
+            patch("app.services.schedule.fetch_yonhap_body", return_value="본문"),
+        ):
+            results = await process_yonhap_rss("테스트", "https://fake.com/rss.xml")
+
+        assert results == []
+
+    async def test_max_articles_제한(self, mock_process_deps):
+        fake_entries = [make_entry(i) for i in range(5)]
         with (
             patch("app.services.schedule.fetch_rss_entries", return_value=fake_entries),
             patch("app.services.schedule.fetch_yonhap_body", return_value="본문"),
-            patch("app.services.schedule.asyncio.sleep"),
         ):
             results = await process_yonhap_rss(
                 "테스트", "https://fake.com/rss.xml", max_articles=2
@@ -262,15 +298,11 @@ class TestProcessYonhapRss:
 
         assert len(results) == 2
 
-    async def test_max_articles_none이면_전체_처리(self):
-        fake_entries = [
-            MagicMock(title=f"기사{i}", link=f"https://www.yna.co.kr/article/{i}")
-            for i in range(10)
-        ]
+    async def test_max_articles_none이면_전체_처리(self, mock_process_deps):
+        fake_entries = [make_entry(i) for i in range(10)]
         with (
             patch("app.services.schedule.fetch_rss_entries", return_value=fake_entries),
             patch("app.services.schedule.fetch_yonhap_body", return_value="본문"),
-            patch("app.services.schedule.asyncio.sleep"),
         ):
             results = await process_yonhap_rss(
                 "테스트", "https://fake.com/rss.xml", max_articles=None
