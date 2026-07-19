@@ -1,4 +1,7 @@
+from typing import Optional
 from pydantic import BaseModel, ConfigDict
+
+from app.models.enums import CategoryEnum
 
 
 # 핵심 용어 1개 (용어 + 뜻 설명)
@@ -11,6 +14,8 @@ class KeywordItem(BaseModel):
 
 # 공통 해설 생성 시 JSON 형식 맞추기 위한 객체
 class CommonAnalysis(BaseModel):
+    success: bool = True  # 기사 DB에 추가할 경우 True
+    category: Optional[str] = None  # 카테고리는 선택적 반환
     summary: str
     keyword: list[KeywordItem]
 

@@ -11,7 +11,9 @@ import aiohttp
 import feedparser
 from bs4 import BeautifulSoup
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
+
+from sqlalchemy.orm import Session
 
 import app.crud.article as article_crud
 from app.exceptions.infrastructure import DatabaseError, ExternalAPIError
@@ -42,9 +44,9 @@ YONHAP_CATEGORY_MAP = {
     "연합뉴스(정치)": CategoryEnum.POLITICS,
     "연합뉴스(경제)": CategoryEnum.ECONOMY,
     "연합뉴스(사회)": CategoryEnum.SOCIETY,
-    # CategoryEnum에 INDUSTRY, WORLD가 없으면 임시로 SOCIETY 처리
-    "연합뉴스(산업/IT)": CategoryEnum.SOCIETY,
-    "연합뉴스(세계)": CategoryEnum.SOCIETY,
+    "연합뉴스(산업/IT)": CategoryEnum.INDUSTRY_IT,
+    # 세계뉴스는 임시로 None 처리
+    "연합뉴스(세계)": None,
 }
 
 
@@ -148,12 +150,13 @@ async def process_yonhap_rss(
     category_name: str,
     rss_url: str,
     max_articles: int | None = MAX_ARTICLES_PER_FEED,
+    db: Session = SessionLocal(),
 ) -> list[dict]:
 
     print("=" * 60)
     print(f"[START] {category_name}: RSS 수집 시작")
 
-    db = SessionLocal()
+    # db = SessionLocal()
 
     try:
         entries = await fetch_rss_entries(rss_url)
@@ -167,7 +170,7 @@ async def process_yonhap_rss(
 
         results: list[dict] = []
 
-        category = YONHAP_CATEGORY_MAP.get(category_name, CategoryEnum.SOCIETY)
+        category = YONHAP_CATEGORY_MAP.get(category_name, None)
 
         async with aiohttp.ClientSession() as session:
             for entry in target_entries:
@@ -186,7 +189,7 @@ async def process_yonhap_rss(
                 print(f"[URL]  {source_url}")
                 print(f"[발행일자]  {published_at}")
                 print(f"[기자]  {reporter}")
-                print(f"[카테고리] {category.value}")
+                print(f"[카테고리] {category.value if category else "None"}")
 
                 # DB 중복 검사
                 if article_crud.get_article_by_source_url(db, source_url):
@@ -196,6 +199,10 @@ async def process_yonhap_rss(
                 content = await fetch_yonhap_body(session, source_url)
 
                 if content:
+                    if len(content) < 500:
+                        print(f"[SKIP] 본문 길이가 짧음 ({len(content)}자)")
+                        continue
+
                     print(f"[OK]   본문 {len(content)}자 수집 완료")
 
                     try:
@@ -203,9 +210,22 @@ async def process_yonhap_rss(
                             {
                                 "title": title,
                                 "content": content,
-                                "category": category.value,
+                                "category": (category.value if category else ""),
                             }
                         )
+
+                        # Test
+                        print("[LOG]  success: " + str(analysis["success"]))
+                        print("[LOG] category: " + analysis["category"])
+                        print("[LOG]  summary: " + analysis["summary"])
+
+                        if analysis["success"] == False:
+                            print(f"[SKIP]  카테고리 이외 기사")
+                            continue
+
+                        # 세계 뉴스에서 LLM으로 분류된 카테고리 반영
+                        if analysis["category"] is not None:
+                            category = CategoryEnum[analysis["category"]]
 
                         embedding = await generate_article_embedding(
                             {
@@ -215,6 +235,21 @@ async def process_yonhap_rss(
                                 "summary": analysis["summary"],
                             }
                         )
+
+                        ## 테스트할 때 주석처리하기
+                        ## 유사도 지나치게 높은 기사 필터링
+                        if (
+                            embedding is not None
+                            and article_crud.exists_similar_article(
+                                db,
+                                datetime.now() - timedelta(hours=24),
+                                source_url,  # DB 저장 전 id가 주어지지 않은 시점에서는 source_url(unique not null)로 구분
+                                embedding,
+                                0.1,  # 유사도 기준 수정 필요
+                            )
+                        ):
+                            print(f"[SKIP] 유사한 기사")
+                            continue
 
                     except Exception as exc:
                         print(f"[ERROR] 공통 해설 생성 실패: {exc}")
@@ -255,8 +290,8 @@ async def process_yonhap_rss(
     except Exception as exc:
         raise DatabaseError(f"기사 정보 저장 실패: {exc}")
 
-    finally:
-        db.close()
+    # finally:
+    #     db.close()
 
 
 # 모든 카테고리에 대해 RSS 피드 수집

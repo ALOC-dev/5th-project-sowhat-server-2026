@@ -26,6 +26,7 @@ class CategoryEnum(str, Enum):
     POLITICS = "POLITICS"
     ECONOMY = "ECONOMY"
     SOCIETY = "SOCIETY"
+    INDUSTRY_IT = "INDUSTRY_IT"
 
 
 class PurposeEnum(str, Enum):
