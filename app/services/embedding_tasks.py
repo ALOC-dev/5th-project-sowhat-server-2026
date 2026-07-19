@@ -1,5 +1,7 @@
 # 응답 이후 실행되는 임베딩 생성 백그라운드 태스크 모음
 # 요청 세션은 백그라운드 실행 전에 닫히므로 각 태스크가 자체 세션을 연다
+from datetime import datetime, timedelta
+
 import numpy as np
 from sqlalchemy.orm import Session
 
@@ -14,12 +16,16 @@ from app.services.llm_service import (
 
 
 # 기사 임베딩 반환, 없으면 생성해 저장
-async def _get_or_create_article_embedding(db: Session, article: Article):
+async def _get_or_create_article_embedding(db: Session, article: Article) -> None:
     if article.embedding is not None:
         return article.embedding
 
-    embedding = await generate_article_embedding(article)
-    article_crud.update_article_by_id(db, article.id, {"embedding": embedding})
+    embedding, summary = await generate_article_embedding(article)
+    payload = {"embedding": embedding}
+    if summary is not None:
+        payload["summary"] = summary
+
+    article_crud.update_article_by_id(db, article.id, payload)
     return embedding
 
 
@@ -30,8 +36,22 @@ async def ensure_article_embedding(article_id: int) -> None:
         article = article_crud.get_article_by_id(db, article_id)
         if article is not None:
             await _get_or_create_article_embedding(db, article)
+
+        # 유사도 지나치게 높은 기사 필터링
+        if article.embedding is not None and article_crud.exists_similar_article(
+            db,
+            datetime.now() - timedelta(hours=24),
+            article.id,
+            article.embedding,
+            0.3,  # 유사도 기준 수정 필요
+        ):
+            article_crud.delete_article_by_id(db, article.id)
+            print(f"[DELETE] 지나치게 유사한 기사 자동 삭제")
+
     except Exception as exc:
-        print(f"[ERROR] 기사 임베딩 백그라운드 생성 실패 (article_id={article_id}): {exc}")
+        print(
+            f"[ERROR] 기사 임베딩 백그라운드 생성 실패 (article_id={article_id}): {exc}"
+        )
     finally:
         db.close()
 
