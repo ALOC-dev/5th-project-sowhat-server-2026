@@ -9,6 +9,7 @@ import app.crud.article as article_crud
 import app.crud.user as user_crud
 from app.db.database import SessionLocal
 from app.models.article import Article
+from app.models.user import User
 from app.services.llm_service import (
     generate_article_embedding,
     generate_user_profile_embedding,
@@ -16,17 +17,39 @@ from app.services.llm_service import (
 
 
 # 기사 임베딩 반환, 없으면 생성해 저장
-async def _get_or_create_article_embedding(db: Session, article: Article) -> None:
+async def _get_or_create_article_embedding(
+    db: Session, article: Article
+) -> list[float]:
     if article.embedding is not None:
         return article.embedding
 
-    embedding, summary = await generate_article_embedding(article)
-    payload = {"embedding": embedding}
-    if summary is not None:
-        payload["summary"] = summary
+    embedding, common_analysis = await generate_article_embedding(article)
 
-    article_crud.update_article_by_id(db, article.id, payload)
+    article_crud.update_article_by_id(
+        db, article.id, {"embedding": embedding, **common_analysis}
+    )
     return embedding
+
+
+# 사용자 프로필 & 행동 임베딩 반환, 없으면 생성해 저장
+async def get_or_create_user_embedding(db: Session, user: User):
+    payload = {}  # 변경사항 DB 저장을 위한 dict
+
+    # 프로필 임베딩 불러오기 (없으면 생성)
+    profile_embedding = user.profile_embedding
+    if profile_embedding is None:
+        profile_embedding = await generate_user_profile_embedding(user)
+        payload["profile_embedding"] = profile_embedding
+
+    # 행동 임베딩 불러오기 (없으면 프로필 임베딩 사용)
+    behavior_embedding = user.behavior_embedding
+    if behavior_embedding is None:
+        behavior_embedding = profile_embedding
+        payload["behavior_embedding"] = behavior_embedding
+
+    if payload is not {}:
+        user_crud.update_user(db, user.id, payload)
+    return profile_embedding, behavior_embedding
 
 
 # 기사 임베딩이 없으면 생성해 저장 (이미 있으면 스킵 → 중복 요청에도 멱등)
@@ -35,23 +58,21 @@ async def ensure_article_embedding(article_id: int) -> None:
     try:
         article = article_crud.get_article_by_id(db, article_id)
         if article is not None:
-            await _get_or_create_article_embedding(db, article)
+            embedding = await _get_or_create_article_embedding(db, article)
 
         # 유사도 지나치게 높은 기사 필터링
-        if article.embedding is not None and article_crud.exists_similar_article(
+        if embedding is not None and article_crud.exists_similar_article(
             db,
             datetime.now() - timedelta(hours=24),
             article.id,
-            article.embedding,
+            embedding,
             0.3,  # 유사도 기준 수정 필요
         ):
             article_crud.delete_article_by_id(db, article.id)
             print(f"[DELETE] 지나치게 유사한 기사 자동 삭제")
 
     except Exception as exc:
-        print(
-            f"[ERROR] 기사 임베딩 백그라운드 생성 실패 (article_id={article_id}): {exc}"
-        )
+        print(f"[ERROR] 기사 임베딩 생성 실패 (article_id={article_id}): {exc}")
     finally:
         db.close()
 
@@ -65,25 +86,19 @@ async def update_behavior_embedding(user_id: int, article_id: int) -> None:
         if user is None or article is None:
             return
 
-        # 행동 임베딩이 없으면 프로필 임베딩에서 시작, 그것도 없으면 새로 생성
-        behavior_embedding = user.behavior_embedding
-        if behavior_embedding is None:
-            behavior_embedding = user.profile_embedding
-        if behavior_embedding is None:
-            behavior_embedding = await generate_user_profile_embedding(user)
-            user_crud.update_user(
-                db, user_id, {"profile_embedding": behavior_embedding}
-            )
+        _, behavior_embedding = await get_or_create_user_embedding(user)
 
         article_embedding = await _get_or_create_article_embedding(db, article)
 
         behavior_embedding = behavior_embedding * 0.9 + article_embedding * 0.1
         behavior_embedding /= np.linalg.norm(behavior_embedding)  # 정규화
         user_crud.update_user(db, user_id, {"behavior_embedding": behavior_embedding})
+
     except Exception as exc:
         print(
             f"[ERROR] 행동 임베딩 백그라운드 업데이트 실패 "
             f"(user_id={user_id}, article_id={article_id}): {exc}"
         )
+
     finally:
         db.close()

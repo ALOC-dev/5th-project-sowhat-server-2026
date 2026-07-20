@@ -156,16 +156,16 @@ async def generate_article_embedding(article: Article | dict):
     if article["summary"] is None:
         common_analysis = await generate_common_analysis(article)
         summary = common_analysis["summary"]
-        is_summary_created = True
+        is_analysis_created = True
     else:
         summary = article["summary"]
-        is_summary_created = False
+        is_analysis_created = False
 
     embeddings = await get_embedding(summary)
     article_embedding = embeddings[0]
     article_embedding /= np.linalg.norm(article_embedding)  # 벡터 정규화
 
-    return article_embedding, (summary if is_summary_created else None)
+    return article_embedding, (common_analysis if is_analysis_created else {})
 
 
 # 사용자 프로필 정보 임베딩 생성 함수
