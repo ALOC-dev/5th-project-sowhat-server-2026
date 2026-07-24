@@ -7,7 +7,7 @@ from app.schemas.common_analysis import CommonAnalysis
 from app.schemas.personal_analysis import PersonalAnalysis
 from app.schemas.filtered_extra_information import FilteredExtraInformation
 
-SYSTEM_JSON_PROMPT = "모든 응답은 기사 내용에 외국어로 표기된 단어를 제외하고 한국어로 작성한다. 나열 또는 구분 기호로 '·'를 사용하지 않는다."
+SYSTEM_JSON_PROMPT = "모든 응답은 기사 내용에 영어 약자 등 외국어로 표기된 단어를 제외하고 한국어로 작성한다. 나열 또는 구분 기호로 '·'를 사용하지 않는다. 맞춤법 및 띄어쓰기 규정을 준수한다."
 
 COMMON_ANALYSIS_PROMPT = """
 너는 뉴스를 처음 접하는 독자도 이해할 수 있도록 어려운 기사를 쉽게 설명하는 뉴스 해설가다.
@@ -28,7 +28,7 @@ COMMON_ANALYSIS_PROMPT = """
 </success 판별 규칙>
 
 <카테고리 작성 규칙>
-- 카테고리는 'ECONOMY', 'POLITICS', 'SOCIETY', 'INDUSTRY_IT' 중 하나이다.
+- 카테고리는 'ECONOMY', 'POLITICS', 'SOCIETY', 'INDUSTRY_IT' 중 하나여야 한다.
 - <기사 정보>의 카테고리가 그 외의 값이면 응답의 'category' 필드에 기사 내용과 가장 어울리는 카테고리를 추가한다.
 </카테고리 작성 규칙>
 
@@ -65,20 +65,28 @@ PERSONAL_ANALYSIS_PROMPT = """
 목표는 입력된 뉴스 기사 정보와 사용자 정보를 근거로 뉴스가 해당 사용자에게 미칠 수 있는 직접적인 영향과 사용자가 확인하거나 준비할 수 있는 대응 방안을 제시하는 것이다.
 반드시 아래 규칙을 지켜라.
 
-<effect 작성 규칙>
-- 2~3문장 분량으로 작성한다.
-- 관련성이 낮은 경우에는 사용자 정보를 억지로 연결하거나 언급하지 않는다.
+<전체 규칙>
+- 각 문장은 \\n으로 구분한다.
 - 투자, 법률, 의료 관련 판단을 단정적으로 제시하지 않는다.
-- 기사 원문에 없는 사실을 만들지 않는다.
+- 특정 정당/진영/개인의 주장에 동조하거나 비판하지 않고 사실관계 중심으로 서술한다.
+- 기사 내용에 없는 사실을 만들지 않는다.
 - <사용자 정보>에 없는 특성이나 상황을 추측하지 않는다.
 - 기사와 사용자 정보의 관련성이 충분할 때만 사용자 정보를 반영한다.
+</전체 규칙>
+
+<effect 작성 규칙>
+- '~습니다' 체를 사용한다. 
+- 기본적으로 1문장으로, 사용자의 자산/건강/법적 지위/소득/일상생활에 직접적 영향을 줄 가능성이 있는 경우 최대 2문장으로 작성한다. 
+- 관련성이 낮은 경우에는 사용자 정보를 억지로 연결하거나 언급하지 않는다.
 </effect 작성 규칙>
 
 <solution 작성 규칙>
-- 2~3문장 분량으로 작성한다.
+- '~해 보세요'와 같이 부드러운 어투로 권유한다.
 - 기사와 무관한 일반적인 생활 조언은 하지 않는다.
-- 행동이 없다면 추가로 확인하면 좋은 정보나 기관을 안내한다.
-- 사용자가 실제로 바로 실행할 수 있는 행동을 제안한다.
+- 사용자와 기사의 관련성이 매우 낮은 경우 구체적 행동 대신 사용자의 관심사나 지역에 해당하는 뉴스 카테고리를 살펴보도록 짧게 안내하고 끝낸다.
+- 뉴스를 읽고 실행할 수 있는 행동을 다음 유형 중 순서대로 해당하는 것이 있는지 살펴보고, 기사 내용과 사용자의 상황에 가장 적합한 행동을 제시한다. 
+    [구체적 실행 행동 > 전문가상담 > 알림설정 > 커뮤니티활용 > 기록정리 > 비교점검 > 구체적인 정보/기관 확인 > 후속 보도 등 미래의 정보 확인]
+- 실행할 수 있는 내용은 최소 1개, 최대 2개까지 작성한다.
 </solution 작성 규칙>
 
 <기사 정보>
@@ -92,59 +100,24 @@ PERSONAL_ANALYSIS_PROMPT = """
 나이: {age}
 직업: {job}
 지역: {region}
-추가 정보: {extra_information}
 뉴스 소비 목적: {purpose}
 관심사: {interest}
+추가 정보: {extra_information}
 </사용자 정보>
 """.strip()
 
 
-# async def test_common_analysis_prompt():
-#     db = SessionLocal()
-
-#     test_article_id = 1026
-
-#     test_article = get_article_by_id(db, test_article_id)
-
-#     prompt = COMMON_ANALYSIS_PROMPT.format(
-#         title=test_article.title,
-#         category=test_article.category,
-#         content=test_article.content,
-#     ).strip()
-
-#     response = await create_json_completion(
-#         messages=[
-#             {"role": "system", "content": SYSTEM_JSON_PROMPT},
-#             {"role": "user", "content": prompt},
-#         ],
-#         response_format=CommonAnalysis,
-#     )
-
-#     print("\n[공통해설]")
-#     print(response.choices[0].message.parsed.model_dump())
-
-
-# 테스트 기사 5, 6, 18, 209, 347, 359, 371, 391, 509, 587, 742, 1026, 1045, 1110
-async def test_personal_analysis_prompt():
+async def test_common_analysis_prompt():
     db = SessionLocal()
 
-    test_article_id = 6
-    test_user_id = 1
+    test_article_id = 1026
 
     test_article = get_article_by_id(db, test_article_id)
-    test_user = get_user_by_id(db, test_user_id)
 
-    prompt = PERSONAL_ANALYSIS_PROMPT.format(
+    prompt = COMMON_ANALYSIS_PROMPT.format(
         title=test_article.title,
         category=test_article.category,
-        summary=test_article.summary,
-        age=test_user.age,
-        gender=test_user.gender,
-        region=test_user.region,
-        job=test_user.job,
-        interest=test_user.interest,
-        purpose=test_user.purpose,
-        extra_information=test_user.filtered_extra_information,
+        content=test_article.content,
     ).strip()
 
     response = await create_json_completion(
@@ -152,11 +125,52 @@ async def test_personal_analysis_prompt():
             {"role": "system", "content": SYSTEM_JSON_PROMPT},
             {"role": "user", "content": prompt},
         ],
-        response_format=PersonalAnalysis,
+        response_format=CommonAnalysis,
     )
+    parsed = response.choices[0].message.parsed.model_dump()
 
-    print("\n[개인맞춤해설]")
-    print(response.choices[0].message.parsed.model_dump())
+    print("\n[공통해설]")
+    print(parsed)
+
+    assert parsed["success"]
+
+
+# 테스트 기사 5, 6, 18, 209, 347, 359, 371, 391, 509, 587, 742, 1026, 1045, 1110
+async def test_personal_analysis_prompt():
+    db = SessionLocal()
+
+    test_article_id = 1110
+    test_user_ids = [1, 2, 4]
+
+    for id in test_user_ids:
+        test_article = get_article_by_id(db, test_article_id)
+        test_user = get_user_by_id(db, id)
+
+        prompt = PERSONAL_ANALYSIS_PROMPT.format(
+            title=test_article.title,
+            category=test_article.category,
+            summary=test_article.summary,
+            age=test_user.age,
+            gender=test_user.gender,
+            region=test_user.region,
+            job=test_user.job,
+            interest=test_user.interest,
+            purpose=test_user.purpose,
+            extra_information=test_user.filtered_extra_information,
+        ).strip()
+
+        response = await create_json_completion(
+            messages=[
+                {"role": "system", "content": SYSTEM_JSON_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            response_format=PersonalAnalysis,
+        )
+        parsed = response.choices[0].message.parsed.model_dump()
+
+        print(f"\n[개인맞춤해설: 사용자 {id}]")
+        print(parsed)
+        print()
 
 
 # FILTER_EXTRA_INFORMATION_PROMPT = """
