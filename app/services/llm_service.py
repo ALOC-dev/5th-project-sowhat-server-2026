@@ -22,13 +22,13 @@ async def generate_common_analysis(article: Article | dict) -> dict:
     if type(article) is Article:
         article = {
             "title": article.title,
-            "category": article.category,
+            "category": article.category.value,
             "content": article.content,
         }
 
     prompt = COMMON_ANALYSIS_PROMPT.format(
         title=article["title"],
-        category=article["category"].value,
+        category=article["category"],
         content=article["content"],
     )
 
@@ -43,13 +43,6 @@ async def generate_common_analysis(article: Article | dict) -> dict:
 
     parsed = response.choices[0].message.parsed.model_dump()
 
-    """
-    returns: dict
-        {
-            "summary": str,
-            "keyword": dict[str, str],
-        }
-    """
     return parsed
 
 
@@ -78,13 +71,6 @@ async def generate_personal_analysis(article: Article, user: User) -> dict:
 
     parsed = response.choices[0].message.parsed.model_dump()
 
-    """
-    returns: dict
-        {
-            "effect": str,
-            "solution": str,
-        }
-    """
     return parsed
 
 
