@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 
 from app.models.enums import (
@@ -12,6 +12,8 @@ from app.models.enums import (
 
 # 회원가입, 정보 수정 요청에서 입력하는 정보만
 class UserBase(BaseModel):
+    login_id: str
+    username: str
     age: int
     gender: GenderEnum
     region: RegionEnum
@@ -31,12 +33,14 @@ class UserCreateRequest(UserBase):
 
 # 회원가입 요청 (이메일/비밀번호 인증 포함)
 class SignupRequest(UserBase):
-    email: EmailStr
+    login_id: str
     password: str = Field(min_length=8)
 
 
 # 정보수정 요청 (모든 필드를 선택적으로 변경 - Optional)
 class UserUpdateRequest(UserBase):
+    login_id: Optional[str] = None
+    username: Optional[str] = None
     age: Optional[int] = None
     gender: Optional[GenderEnum] = None
     region: Optional[RegionEnum] = None
@@ -61,8 +65,8 @@ class UserCreateResponse(BaseModel):
 class UserUpdateResponse(UserBase):
     id: int
 
+
 # 로그인 요청
 class LoginRequest(BaseModel):
-    email: EmailStr
+    login_id: str
     password: str
-    

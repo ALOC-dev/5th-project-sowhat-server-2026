@@ -68,8 +68,8 @@ def _validate_user_extra_information(payload: FilteredExtraInformation) -> str:
             "사용자 입력란에는 개인정보 및 위험한 정보(범죄, 폭력, 혐오 발언 등)를 작성할 수 없습니다."
         )
     return payload.summary
-  
-  
+
+
 # 가입 시점에 프로필 임베딩 생성
 # 실패해도 가입은 유지 (임베딩은 추천 시 lazy 생성되는 fallback 존재)
 async def attach_profile_embedding(db: Session, user: User) -> User:
@@ -82,10 +82,11 @@ async def attach_profile_embedding(db: Session, user: User) -> User:
     return user
 
 
-async def create_user(db: Session, payload: UserCreateRequest) -> User:
+async def create_user(
+    db: Session, payload: UserCreateRequest, background_tasks
+) -> User:
     _validate_create_user_payload(payload)
-    user = crud.create_user(db, payload.model_dump())
-    return await attach_profile_embedding(db, user)
+    # user = crud.create_user(db, payload.model_dump())
 
     create_data = payload.model_dump()
 
@@ -100,6 +101,9 @@ async def create_user(db: Session, payload: UserCreateRequest) -> User:
     )  # dict에 원본 문장, 필터링된 문장 추가
 
     user = crud.create_user(db, create_data)
+    # 프로필 임베딩 생성은 백그라운드로 빼기
+    background_tasks.add_task(attach_profile_embedding, db, user)
+
     return user
 
 
@@ -110,7 +114,9 @@ def get_user(db: Session, user_id: int) -> User:
     return user
 
 
-async def update_user(db: Session, user_id: int, payload: UserUpdateRequest) -> User:
+async def update_user(
+    db: Session, user_id: int, payload: UserUpdateRequest, background_tasks
+) -> User:
     _validate_update_user_payload(payload)
 
     update_data = payload.model_dump(exclude_unset=True)  # dict 형태로 변환
@@ -130,4 +136,6 @@ async def update_user(db: Session, user_id: int, payload: UserUpdateRequest) -> 
     if user is None:
         raise UserNotFoundError()
 
+    # 프로필 임베딩 생성은 백그라운드로 빼기
+    background_tasks.add_task(attach_profile_embedding, db, user)
     return user

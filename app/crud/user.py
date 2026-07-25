@@ -18,8 +18,8 @@ def get_user_by_id(db: Session, id: int) -> User:
     return db.query(User).filter(User.id == id).first()
 
 
-def get_user_by_email(db: Session, email: str) -> User:
-    return db.query(User).filter(User.email == email).first()
+def get_user_by_login_id(db: Session, login_id: str) -> User:
+    return db.query(User).filter(User.login_id == login_id).first()
 
 
 def update_user(db: Session, id: int, payload: dict) -> User:

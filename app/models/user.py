@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Enum, Integer, Text, func, JSON
+from sqlalchemy import Column, DateTime, Enum, Integer, Text, String, func
 from pgvector.sqlalchemy import Vector
 from app.db.database import Base
 
@@ -15,9 +15,9 @@ class User(Base):
     __tablename__ = "user"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    # 인증 도입 이전에 생성된 유저는 email/hashed_password가 없으므로 nullable
-    email = Column(Text, unique=True, index=True, nullable=True)
-    hashed_password = Column(Text, nullable=True)
+    login_id = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(Text, nullable=False)
+    username = Column(String(255), nullable=False)
     age = Column(Integer, nullable=False)
     gender = Column(Enum(GenderEnum, name="gender_enum"), nullable=True)
     region = Column(Enum(RegionEnum, name="region_enum"), nullable=True)

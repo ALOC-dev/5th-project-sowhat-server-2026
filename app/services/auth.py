@@ -13,7 +13,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.exceptions.domain import DuplicateEmailError
+from app.exceptions.domain import DuplicateLoginIdError
 from app.models.user import User
 from app.schemas.user import LoginRequest, SignupRequest
 
@@ -21,8 +21,8 @@ from app.schemas.user import LoginRequest, SignupRequest
 async def signup(db: Session, payload: SignupRequest) -> User:
     user_service._validate_create_user_payload(payload)
 
-    if crud.get_user_by_email(db, payload.email) is not None:
-        raise DuplicateEmailError()
+    if crud.get_user_by_email(db, payload.login_id) is not None:
+        raise DuplicateLoginIdError()
 
     user_data = payload.model_dump(exclude={"password"})
     user_data["hashed_password"] = hash_password(payload.password)
@@ -32,7 +32,7 @@ async def signup(db: Session, payload: SignupRequest) -> User:
 
 
 def login(db: Session, payload: LoginRequest, response: Response):
-    user = crud.get_user_by_email(db, payload.email)
+    user = crud.get_user_by_login_id(db, payload.login_id)
 
     if user is None or user.hashed_password is None:
         raise HTTPException(
