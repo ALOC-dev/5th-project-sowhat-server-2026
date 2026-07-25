@@ -141,8 +141,8 @@ async def filter_user_extra_information(
 
 
 # 기사 임베딩 생성 함수
-# LLM으로 생성된 기사 요약본을 통해 임베딩 생성
-async def generate_article_embedding(article: Article | dict) -> list[float]:
+# LLM으로 생성된 기사 요약본을 통해 임베딩 생성 (+필요시 해설 생성)
+async def generate_article_embedding(article: Article | dict):
     # SQLAlchemy 모델에는 model_dump()가 없으므로 필요한 필드만 꺼내 dict로 변환
     if type(article) is Article:
         article = {
@@ -152,17 +152,20 @@ async def generate_article_embedding(article: Article | dict) -> list[float]:
             "summary": article.summary,
         }
 
-    # 기사 요약 불러오기, 없을 시 생성
+    # 기사 요약 불러오기, 없을 시 생성해서 함께 반환
     if article["summary"] is None:
         common_analysis = await generate_common_analysis(article)
         summary = common_analysis["summary"]
+        is_analysis_created = True
     else:
         summary = article["summary"]
+        is_analysis_created = False
 
     embeddings = await get_embedding(summary)
     article_embedding = embeddings[0]
     article_embedding /= np.linalg.norm(article_embedding)  # 벡터 정규화
-    return article_embedding
+
+    return article_embedding, (common_analysis if is_analysis_created else {})
 
 
 # 사용자 프로필 정보 임베딩 생성 함수

@@ -5,7 +5,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 from app.models.article import Article
-from sqlalchemy import exists, select
+from sqlalchemy import delete, exists, select
 
 
 def create_article(db: Session, payload: dict) -> Article:
@@ -67,8 +67,8 @@ def find_similar_articles(
     return db.execute(stmt).scalars().all()
 
 
-def get_article_by_id(db: Session, article_id: int) -> Article:
-    return db.query(Article).filter(Article.id == article_id).first()
+def get_article_by_id(db: Session, id: int) -> Article:
+    return db.query(Article).filter(Article.id == id).first()
 
 
 def get_article_by_source_url(db: Session, source_url: str) -> Article:
@@ -78,18 +78,51 @@ def get_article_by_source_url(db: Session, source_url: str) -> Article:
 def exists_similar_article(
     db: Session,
     date: datetime,
-    source_url: str,
+    id: int,
     embedding: list[float],
     threshold: float = 0.05,
 ) -> float:
     stmt = select(
         exists().where(
-            (Article.source_url != source_url)
+            (Article.id != id)
             & (Article.published_at >= date)
             & (Article.embedding.cosine_distance(embedding) <= threshold)
         )
     )
     return db.execute(stmt).scalar()
+
+
+def update_article_by_id(db: Session, id: int, payload: dict) -> Article | None:
+    article = db.query(Article).filter(Article.id == id).first()
+
+    if article is None:
+        return None
+
+    for key, value in payload.items():
+        setattr(article, key, value)
+
+    try:
+        db.commit()
+        db.refresh(article)
+        return article
+    except Exception:
+        db.rollback()
+        raise
+
+
+def delete_article_by_id(db: Session, id: int) -> int:
+    stmt = delete(Article).where(Article.id == id)
+    result = db.execute(stmt)
+
+    try:
+        db.commit()
+        return result.rowcount
+    except Exception:
+        db.rollback()
+        raise
+
+
+# ========================================================
 
 
 # sqlite 테스트용 함수
@@ -124,21 +157,3 @@ def get_highest_similarity(
     similarity = float(similarities[best_idx])
 
     return similarity
-
-
-def update_article_by_id(db: Session, article_id: int, payload: dict) -> Article:
-    article = db.query(Article).filter(Article.id == article_id).first()
-
-    if article is None:
-        return None
-
-    for key, value in payload.items():
-        setattr(article, key, value)
-
-    try:
-        db.commit()
-        db.refresh(article)
-        return article
-    except Exception:
-        db.rollback()
-        raise

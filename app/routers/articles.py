@@ -1,7 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from datetime import datetime
 
 from app.schemas.article import ArticlePreviewResponse, ArticleDetailResponse
 from app.schemas.personal_analysis import PersonalAnalysis
@@ -51,7 +50,5 @@ async def get_article(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    article_detail = await service.get_common_analysis(
-        db, article_id, background_tasks
-    )
+    article_detail = await service.get_common_analysis(db, article_id, background_tasks)
     return article_detail

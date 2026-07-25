@@ -4,9 +4,15 @@ import pytest
 from sqlalchemy import StaticPool, create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.db.database import Base
+from app.db.database import Base, SessionLocal
+from app.services.embedding_tasks import ensure_article_embedding
+from app.services.llm_service import generate_common_analysis
 from app.services.schedule import process_yonhap_rss, YONHAP_RSS
-from app.crud.article import get_highest_similarity, get_article_by_source_url
+from app.crud.article import (
+    get_article_by_id,
+    get_highest_similarity,
+    get_article_by_source_url,
+)
 
 categories = [
     "연합뉴스(산업/IT)",
@@ -65,5 +71,45 @@ async def test_irrelevant_articles():
             if distance <= threshold:
                 print(f"[SKIP {i}] 유사한 기사")
                 continue
+
+    db.close()
+
+
+async def test_delete_duplicate_articles():
+    db = SessionLocal()
+
+    test_ids = [1104, 1106, 1107, 1100, 1089, 1108]
+
+    results = []
+
+    for id in test_ids:
+        await ensure_article_embedding(id)
+        test_article = get_article_by_id(db, id)
+
+        if test_article is None:
+            print(f"[LOG {id}] 삭제된 기사")
+            continue
+
+        results.append(
+            {
+                "source_url": test_article.source_url,
+                "embedding": test_article.embedding,
+            }
+        )
+
+    print()
+
+    for i in range(len(results)):
+        r = results[i]
+
+        if r["embedding"] is not None:
+            highest_similarity = get_highest_similarity(
+                db,
+                datetime.now() - timedelta(hours=24),
+                r["source_url"],
+                r["embedding"],
+            )
+
+            print(f"[LOG {i}]  유사도: " + str(highest_similarity))
 
     db.close()
