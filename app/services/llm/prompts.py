@@ -18,7 +18,7 @@ COMMON_ANALYSIS_PROMPT = """
 </success 판별 규칙>
 
 <카테고리 작성 규칙>
-- 카테고리는 'ECONOMY', 'POLITICS', 'SOCIETY', 'INDUSTRY_IT' 중 하나이다.
+- 카테고리는 '경제', '정치', '사회', '산업/IT' 중 하나이다.
 - <기사 정보>의 카테고리가 그 외의 값이면 응답의 'category' 필드에 기사 내용과 가장 어울리는 카테고리를 추가한다.
 </카테고리 작성 규칙>
 

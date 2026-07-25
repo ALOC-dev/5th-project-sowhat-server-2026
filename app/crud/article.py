@@ -33,7 +33,7 @@ def create_articles(db: Session, articles: list[dict]) -> list[Article]:
 
 # 최신 기사 최대 30개 불러오기 (overfetching 예방)
 def get_all_articles(db: Session) -> list[Article]:
-    stmt = select(Article).order_by(Article.published_at.desc()).limit(30)
+    stmt = select(Article).order_by(Article.published_at.desc()).limit(5)
     return db.execute(stmt).scalars().all()
 
 

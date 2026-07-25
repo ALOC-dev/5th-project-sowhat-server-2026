@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, Text, UniqueConstraint
+from sqlalchemy import JSON, Column, ForeignKey, Integer, Text, UniqueConstraint
 from app.db.database import Base
 
 
@@ -25,3 +25,4 @@ class PersonalAnalysis(Base):
     )
     effect = Column(Text, nullable=False)
     solution = Column(Text, nullable=False)
+    links = Column(JSON, nullable=True)

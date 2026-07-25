@@ -29,8 +29,8 @@ class DuplicateArticleError(DomainError):
     status_code = 409
 
 
-class DuplicateEmailError(DomainError):
+class DuplicateLoginIdError(DomainError):
     """Raised when the email is already registered."""
 
-    default_message = "이미 가입된 이메일입니다."
+    default_message = "이미 가입된 ID입니다."
     status_code = 409

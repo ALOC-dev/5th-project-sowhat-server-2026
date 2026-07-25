@@ -217,15 +217,14 @@ async def process_yonhap_rss(
                         # Test
                         print("[LOG]  success: " + str(analysis["success"]))
                         print("[LOG] category: " + analysis["category"])
-                        print("[LOG]  summary: " + analysis["summary"])
 
                         if analysis["success"] == False:
                             print(f"[SKIP]  카테고리 이외 기사")
                             continue
 
                         # 세계 뉴스에서 LLM으로 분류된 카테고리 반영
-                        if analysis["category"] is not None:
-                            category = CategoryEnum[analysis["category"]]
+                        if category is None:
+                            category = CategoryEnum(analysis["category"])
 
                     except Exception as exc:
                         print(f"[ERROR] 공통 해설 생성 실패: {exc}")

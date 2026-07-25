@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -18,8 +18,12 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 # ── POST /api/users ────────────────────────────────────────
 # 성공 시 응답: 201 CREATED
 @router.post("", response_model=UserCreateResponse, status_code=201)
-async def create_user(payload: UserCreateRequest, db: Session = Depends(get_db)):
-    return await service.create_user(db, payload)
+async def create_user(
+    payload: UserCreateRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    return await service.create_user(db, payload, background_tasks)
 
 
 # ── GET /api/users/me ───────────────────────────────────────
@@ -37,8 +41,9 @@ def get_my_profile(
 async def update_my_profile(
     payload: UserUpdateRequest,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     current_user = auth_service.get_current_user(db, request)
-    user = await service.update_user(db, current_user.id, payload)
+    user = await service.update_user(db, current_user.id, payload, background_tasks)
     return user
