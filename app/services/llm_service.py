@@ -28,18 +28,9 @@ async def generate_common_analysis(article: Article | dict) -> dict:
 
     prompt = COMMON_ANALYSIS_PROMPT.format(
         title=article["title"],
-        category=article["category"],
+        category=article["category"].value,
         content=article["content"],
     )
-
-    ### Groq
-    # response = await groq_client.create_json_completion(
-    #     [
-    #         {"role": "system", "content": SYSTEM_JSON_PROMPT},
-    #         {"role": "user", "content": prompt},
-    #     ]
-    # )
-    # raw_text = response.choices[0].message.content.strip()
 
     ### OpenAI
     response = await create_json_completion(
@@ -51,11 +42,6 @@ async def generate_common_analysis(article: Article | dict) -> dict:
     )
 
     parsed = response.choices[0].message.parsed.model_dump()
-
-    # [{"word": ..., "description": ...}] -> {"단어": "뜻 설명"} dict로 변환
-    # parsed["keyword"] = {
-    #     item["word"]: item["description"] for item in parsed["keyword"]
-    # }
 
     """
     returns: dict
@@ -70,25 +56,16 @@ async def generate_common_analysis(article: Article | dict) -> dict:
 async def generate_personal_analysis(article: Article, user: User) -> dict:
     prompt = PERSONAL_ANALYSIS_PROMPT.format(
         title=article.title,
-        category=article.category,
+        category=article.category.value,
         content=article.content,
         age=user.age,
-        gender=user.gender,
-        region=user.region,
-        job=user.job,
-        interest=user.interest,
-        purpose=user.purpose,
+        gender=user.gender.value,
+        region=user.region.value,
+        job=user.job.value,
+        interest=user.interest.value,
+        purpose=user.purpose.value,
         extra_information=user.filtered_extra_information,
     )
-
-    ### Groq
-    # response = await create_json_completion(
-    #     [
-    #         {"role": "system", "content": SYSTEM_JSON_PROMPT},
-    #         {"role": "user", "content": prompt},
-    #     ]
-    # )
-    # raw_text = response.choices[0].message.content.strip()
 
     ### OpenAI
     response = await create_json_completion(
@@ -173,10 +150,10 @@ async def generate_article_embedding(article: Article | dict):
 async def generate_user_profile_embedding(user: User) -> list[float]:
     # 사용자 프로필 정보를 자연스러운 구어체 문장형으로 묘사하여 초기 프로필 임베딩 생성
     profile_text = [
-        f"이 사용자는 {user.age}세이며, 성별은 {user.gender}입니다.",
-        f"현재 직업은 {user.job}이며, 주로 {user.region} 지역의 소식에 관심이 있습니다.",
-        f"평소에 {user.interest} 분야의 뉴스를 즐겨 읽습니다.",
-        f"뉴스를 읽는 주된 목적은 {user.purpose}입니다.",
+        f"이 사용자는 {user.age}세이며, 성별은 {user.gender.value}자입니다.",
+        f"현재 직업은 {user.job.value}이며, 주로 {user.region.value} 지역의 소식에 관심이 있습니다.",
+        f"평소에 {user.interest.value} 분야의 뉴스를 즐겨 읽습니다.",
+        f"뉴스를 읽는 주된 목적은 {user.purpose.value}입니다.",
         f"추가적인 사용자 성향 정보는 다음과 같습니다: {user.extra_information}",
     ]
     embeddings = await get_embedding(

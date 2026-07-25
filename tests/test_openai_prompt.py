@@ -114,14 +114,14 @@ async def test_personal_analysis_prompt():
 
     prompt = PERSONAL_ANALYSIS_PROMPT.format(
         title=test_article.title,
-        category=test_article.category,
+        category=test_article.category.value,
         content=test_article.content,
         age=test_user.age,
-        gender=test_user.gender,
-        region=test_user.region,
-        job=test_user.job,
-        interest=test_user.interest,
-        purpose=test_user.purpose,
+        gender=test_user.gender.value,
+        region=test_user.region.value,
+        job=test_user.job.value,
+        interest=test_user.interest.value,
+        purpose=test_user.purpose.value,
         extra_information=test_user.filtered_extra_information,
     ).strip()
 
