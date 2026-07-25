@@ -12,6 +12,10 @@ from app.services.llm.prompts import (
     SYSTEM_JSON_PROMPT,
     FILTER_EXTRA_INFORMATION_PROMPT,
 )
+from app.services.llm.reference_links import (
+    REFERENCE_LINK_NAMES,
+    resolve_reference_link,
+)
 
 from app.schemas.common_analysis import CommonAnalysis
 from app.schemas.personal_analysis import PersonalAnalysis
@@ -67,11 +71,35 @@ async def generate_common_analysis(article: Article | dict) -> dict:
     return parsed
 
 
-async def generate_personal_analysis(article: Article, user: User) -> dict:
+# 과거 유사 기사를 프롬프트에 넣을 문자열로 변환
+def format_related_articles(related_articles: list[Article] | None) -> str:
+    if not related_articles:
+        return "없음"
+
+    return "\n".join(
+        f"- ({article.published_at:%Y년 %m월 %d일}) {article.title}\n  {article.summary}"
+        for article in related_articles
+    )
+
+
+async def generate_personal_analysis(
+    article: Article,
+    user: User,
+    related_articles: list[Article] | None = None,
+) -> dict:
+    # 개인해설은 요약문을 기사 골자로 삼으므로 요약이 없으면 먼저 생성한다
+    summary = article.summary
+    if summary is None:
+        common_analysis = await generate_common_analysis(article)
+        summary = common_analysis["summary"]
+
     prompt = PERSONAL_ANALYSIS_PROMPT.format(
         title=article.title,
         category=article.category,
+        summary=summary,
         content=article.content,
+        related_articles=format_related_articles(related_articles),
+        reference_links=REFERENCE_LINK_NAMES,
         age=user.age,
         gender=user.gender,
         region=user.region,
@@ -101,11 +129,18 @@ async def generate_personal_analysis(article: Article, user: User) -> dict:
 
     parsed = response.choices[0].message.parsed.model_dump()
 
+    # LLM이 고른 창구 이름을 등록된 주소로 바꾼다. 목록에 없으면 빈 값이 된다.
+    parsed["link"] = resolve_reference_link(parsed.get("link_name"))
+    if not parsed["link"]:
+        parsed["link_name"] = ""
+
     """
     returns: dict
         {
             "effect": str,
             "solution": str,
+            "link_name": str,
+            "link": str,
         }
     """
     return parsed

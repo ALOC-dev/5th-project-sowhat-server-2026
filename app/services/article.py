@@ -95,7 +95,14 @@ async def get_personal_analysis(
     if personal:
         return personal
 
-    personal_analysis = await generate_personal_analysis(article, user)
+    # 과거 유사 기사를 함께 넘겨 개인해설이 지어낸 사례 대신 실제 보도를 근거로 삼게 한다
+    related_articles = article_crud.find_related_past_articles(db, article)
+
+    personal_analysis = await generate_personal_analysis(
+        article,
+        user,
+        related_articles,
+    )
 
     personal_crud.create_analysis(
         db,

@@ -4,7 +4,7 @@ from app.db.database import get_db
 from datetime import datetime
 
 from app.schemas.article import ArticlePreviewResponse, ArticleDetailResponse
-from app.schemas.personal_analysis import PersonalAnalysis
+from app.schemas.personal_analysis import PersonalAnalysisResponse
 
 import app.services.article as service
 
@@ -31,7 +31,7 @@ async def get_recommended_articles(
 
 # ── GET /articles/analysis (순서 중요: /{article_id} 보다 위) ──
 # 호출될 시 사용자가 뉴스를 조회한 것을 누적 태그 점수에 반영
-@router.get("/analysis", response_model=PersonalAnalysis)
+@router.get("/analysis", response_model=PersonalAnalysisResponse)
 async def get_analysis(
     background_tasks: BackgroundTasks,
     article_id: int = Query(alias="article-id"),

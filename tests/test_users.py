@@ -36,13 +36,36 @@ def test_create_user_success(client):
     assert "id" in response.json()
 
 
-# ── GET /api/users/{user_id} ────────────────────────────────
+# ── /api/users/me (JWT 인증) ────────────────────────────────
+
+SIGNUP_PAYLOAD = {
+    **USER_PAYLOAD,
+    "email": "test@example.com",
+    "password": "test-password",
+}
 
 
-def test_get_user_success(client):
-    created_id = client.post("/api/users", json=USER_PAYLOAD).json()["id"]
+# 회원가입 후 로그인해 인증 쿠키가 담긴 client를 돌려준다
+def signup_and_login(client):
+    signup = client.post("/api/auth/signup", json=SIGNUP_PAYLOAD)
+    assert signup.status_code == 201
 
-    response = client.get(f"/api/users/{created_id}")
+    login = client.post(
+        "/api/auth/login",
+        json={
+            "email": SIGNUP_PAYLOAD["email"],
+            "password": SIGNUP_PAYLOAD["password"],
+        },
+    )
+    assert login.status_code == 200
+
+    return signup.json()["id"]
+
+
+def test_get_my_profile_success(client):
+    signup_and_login(client)
+
+    response = client.get("/api/users/me")
 
     assert response.status_code == 200
     data = response.json()
@@ -50,27 +73,22 @@ def test_get_user_success(client):
     assert data["job"] == "STUDENT"
 
 
-def test_get_user_not_found(client):
-    response = client.get("/api/users/999")
+def test_get_my_profile_without_login(client):
+    response = client.get("/api/users/me")
 
-    assert response.status_code == 404
-    assert response.json()["error"]["message"] == "사용자를 찾을 수 없습니다."
-
-
-# ── PATCH /api/users/{user_id} ──────────────────────────────
+    assert response.status_code == 401
 
 
-def test_update_user_success(client):
-    created_id = client.post("/api/users", json=USER_PAYLOAD).json()["id"]
+def test_update_my_profile_success(client):
+    signup_and_login(client)
 
-    response = client.patch(f"/api/users/{created_id}", json={"age": 25})
+    response = client.patch("/api/users/me", json={"age": 25})
 
     assert response.status_code == 200
     assert response.json()["age"] == 25
 
 
-def test_update_user_not_found(client):
-    response = client.patch("/api/users/999", json={"age": 25})
+def test_update_my_profile_without_login(client):
+    response = client.patch("/api/users/me", json={"age": 25})
 
-    assert response.status_code == 404
-    assert response.json()["error"]["message"] == "사용자를 찾을 수 없습니다."
+    assert response.status_code == 401
