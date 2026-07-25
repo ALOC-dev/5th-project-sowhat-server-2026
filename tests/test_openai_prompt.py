@@ -4,7 +4,7 @@ from app.crud.user import get_user_by_id
 from app.db.database import SessionLocal
 
 from app.schemas.common_analysis import CommonAnalysis
-from app.schemas.personal_analysis import PersonalAnalysis
+from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch
 from app.schemas.filtered_extra_information import FilteredExtraInformation
 
 SYSTEM_JSON_PROMPT = "모든 응답은 영어 약자 등 외래어 표기에 꼭 필요한 경우를 제외하고 한국어로 작성한다."
@@ -130,7 +130,7 @@ async def test_personal_analysis_prompt():
             {"role": "system", "content": SYSTEM_JSON_PROMPT},
             {"role": "user", "content": prompt},
         ],
-        response_format=PersonalAnalysis,
+        response_format=PersonalAnalysisBeforeSearch,
     )
 
     print("\n[개인맞춤해설]")

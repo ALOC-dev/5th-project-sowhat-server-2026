@@ -14,7 +14,7 @@ from app.services.llm.prompts import (
 )
 
 from app.schemas.common_analysis import CommonAnalysis
-from app.schemas.personal_analysis import PersonalAnalysis
+from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch
 
 
 async def generate_common_analysis(article: Article | dict) -> dict:
@@ -73,7 +73,7 @@ async def generate_personal_analysis(article: Article, user: User) -> dict:
             {"role": "system", "content": SYSTEM_JSON_PROMPT},
             {"role": "user", "content": prompt},
         ],
-        response_format=PersonalAnalysis,
+        response_format=PersonalAnalysisBeforeSearch,
     )
 
     parsed = response.choices[0].message.parsed.model_dump()
