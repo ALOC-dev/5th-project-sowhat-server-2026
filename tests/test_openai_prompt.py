@@ -13,7 +13,7 @@ from app.crud.user import get_user_by_id
 from app.db.database import SessionLocal
 
 from app.schemas.common_analysis import CommonAnalysis
-from app.schemas.personal_analysis import PersonalAnalysis
+from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch
 from app.schemas.filtered_extra_information import FilteredExtraInformation
 from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
@@ -23,9 +23,9 @@ from app.services.llm.prompts import (
 )
 from app.services.llm.reference_links import (
     REFERENCE_LINK_NAMES,
-    resolve_reference_link,
+    resolve_reference_links,
 )
-from app.services.llm_service import format_related_articles
+from app.services.llm_service import category_value, format_related_articles
 
 # 테스트 기사 5, 6, 18, 209, 347, 359, 371, 391, 509, 587, 742, 1026, 1045, 1110
 # 5(경제, ▲ 열거 항목), 509(정치, 지엽적 소재로 개인화되던 사례)는 피드백에서 지적된 기사
@@ -38,7 +38,7 @@ TEST_USER_IDS = [1, 2, 4]
 async def generate_summary(article) -> dict:
     prompt = COMMON_ANALYSIS_PROMPT.format(
         title=article.title,
-        category=article.category,
+        category=category_value(article.category),
         content=article.content,
     ).strip()
 
@@ -109,17 +109,16 @@ async def test_personal_analysis_prompt():
 
             prompt = PERSONAL_ANALYSIS_PROMPT.format(
                 title=test_article.title,
-                category=test_article.category,
+                category=category_value(test_article.category),
                 summary=summary,
-                content=test_article.content,
                 related_articles=format_related_articles(related_articles),
                 reference_links=REFERENCE_LINK_NAMES,
                 age=test_user.age,
-                gender=test_user.gender,
-                region=test_user.region,
-                job=test_user.job,
-                interest=test_user.interest,
-                purpose=test_user.purpose,
+                gender=test_user.gender.value,
+                region=test_user.region.value,
+                job=test_user.job.value,
+                interest=test_user.interest.value,
+                purpose=test_user.purpose.value,
                 extra_information=test_user.filtered_extra_information,
             ).strip()
 
@@ -128,18 +127,20 @@ async def test_personal_analysis_prompt():
                     {"role": "system", "content": SYSTEM_JSON_PROMPT},
                     {"role": "user", "content": prompt},
                 ],
-                response_format=PersonalAnalysis,
+                response_format=PersonalAnalysisBeforeSearch,
             )
             parsed = response.choices[0].message.parsed.model_dump()
-            link = resolve_reference_link(parsed["link_name"])
+            links = resolve_reference_links(parsed["link_names"])
 
             print(f"\n[개인맞춤해설: 사용자 {id}]")
             print("effect:", parsed["effect"])
             print("solution:", parsed["solution"])
-            print("link:", parsed["link_name"] or "없음", link)
+            print("link_names:", parsed["link_names"] or "없음")
+            for link in links:
+                print(f"  - {link['title']} {link['url']}")
 
-            # 목록에 없는 이름을 지어내면 링크로 변환되지 않는다
-            assert not parsed["link_name"] or link
+            # 등록된 창구 이름만 링크로 변환된다
+            assert len(links) <= len(parsed["link_names"])
         print()
 
 

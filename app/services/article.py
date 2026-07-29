@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 import app.crud.article as article_crud
 import app.crud.personal_analysis as personal_crud
 import app.crud.user as user_crud
-from datetime import datetime, timedelta
 
 from app.models.article import Article
 from app.exceptions.domain import ArticleNotFoundError, UserNotFoundError

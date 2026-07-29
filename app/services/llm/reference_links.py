@@ -2,8 +2,11 @@
 개인해설의 조회/신청 링크로 사용할 공식 창구 목록.
 
 LLM이 주소를 직접 생성하면 존재하지 않는 링크를 만들 위험이 있으므로,
-LLM에는 아래 이름 중 하나만 고르게 하고 실제 주소는 서버에서 매핑한다.
+LLM에는 창구 이름만 고르게 하고 실제 주소는 서버에서 매핑한다.
 새 창구를 추가할 때는 반드시 실제 주소를 확인한 뒤 등록한다.
+
+목록에 없는 창구 이름은 여기서 링크로 바뀌지 않는다.
+그 이름들은 웹 검색(Tavily) 단계에서 실제 링크를 찾는 검색어로 사용한다.
 """
 
 REFERENCE_LINKS: dict[str, str] = {
@@ -31,3 +34,20 @@ def resolve_reference_link(link_name: str | None) -> str:
         return ""
 
     return REFERENCE_LINKS.get(link_name.strip(), "")
+
+
+# 창구 이름 목록을 {title, url} 목록으로 변환한다.
+# 목록에 없는 이름은 링크를 만들 수 없으므로 제외한다.
+def resolve_reference_links(link_names: list[str] | None) -> list[dict]:
+    if not link_names:
+        return []
+
+    links = []
+
+    for name in link_names:
+        url = resolve_reference_link(name)
+
+        if url:
+            links.append({"title": name.strip(), "url": url})
+
+    return links

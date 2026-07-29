@@ -5,14 +5,15 @@ import pytest
 import app.services.user as user_service
 
 SIGNUP_PAYLOAD = {
-    "email": "test@example.com",
+    "login_id": "testuser",
+    "username": "테스트",
     "password": "password123",
     "age": 25,
-    "gender": "MALE",
-    "region": "SEOUL",
-    "job": "STUDENT",
-    "interest": "ECONOMY",
-    "purpose": "STUDY",
+    "gender": "남",
+    "region": "서울",
+    "job": "학생",
+    "interest": "경제",
+    "purpose": "공부",
     "extra_information": "테스트 유저입니다.",
 }
 
@@ -37,18 +38,17 @@ def test_signup_success(client):
     assert data["message"] == "회원가입이 완료되었습니다."
 
 
-def test_signup_duplicate_email(client):
+def test_signup_duplicate_login_id(client):
     client.post("/api/auth/signup", json=SIGNUP_PAYLOAD)
     response = client.post("/api/auth/signup", json=SIGNUP_PAYLOAD)
 
     assert response.status_code == 409
     error = response.json()["error"]
-    assert error["code"] == "DuplicateEmailError"
-    assert error["message"] == "이미 가입된 이메일입니다."
+    assert error["code"] == "DuplicateLoginIdError"
 
 
-def test_signup_invalid_email(client):
-    payload = {**SIGNUP_PAYLOAD, "email": "not-an-email"}
+def test_signup_missing_login_id(client):
+    payload = {k: v for k, v in SIGNUP_PAYLOAD.items() if k != "login_id"}
     response = client.post("/api/auth/signup", json=payload)
 
     assert response.status_code == 422

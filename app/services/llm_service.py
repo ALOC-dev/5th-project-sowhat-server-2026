@@ -14,11 +14,17 @@ from app.services.llm.prompts import (
 )
 from app.services.llm.reference_links import (
     REFERENCE_LINK_NAMES,
-    resolve_reference_link,
+    resolve_reference_links,
 )
 
 from app.schemas.common_analysis import CommonAnalysis
-from app.schemas.personal_analysis import PersonalAnalysis
+from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch
+
+
+# 카테고리는 nullable이므로 값이 없을 수 있다.
+# 프롬프트가 빈 값을 받으면 기사 내용에 맞는 카테고리를 직접 채우도록 되어 있다.
+def category_value(category) -> str:
+    return category.value if category is not None else ""
 
 
 async def generate_common_analysis(article: Article | dict) -> dict:
@@ -26,7 +32,7 @@ async def generate_common_analysis(article: Article | dict) -> dict:
     if type(article) is Article:
         article = {
             "title": article.title,
-            "category": article.category,
+            "category": category_value(article.category),
             "content": article.content,
         }
 
@@ -35,15 +41,6 @@ async def generate_common_analysis(article: Article | dict) -> dict:
         category=article["category"],
         content=article["content"],
     )
-
-    ### Groq
-    # response = await groq_client.create_json_completion(
-    #     [
-    #         {"role": "system", "content": SYSTEM_JSON_PROMPT},
-    #         {"role": "user", "content": prompt},
-    #     ]
-    # )
-    # raw_text = response.choices[0].message.content.strip()
 
     ### OpenAI
     response = await create_json_completion(
@@ -56,18 +53,6 @@ async def generate_common_analysis(article: Article | dict) -> dict:
 
     parsed = response.choices[0].message.parsed.model_dump()
 
-    # [{"word": ..., "description": ...}] -> {"단어": "뜻 설명"} dict로 변환
-    # parsed["keyword"] = {
-    #     item["word"]: item["description"] for item in parsed["keyword"]
-    # }
-
-    """
-    returns: dict
-        {
-            "summary": str,
-            "keyword": dict[str, str],
-        }
-    """
     return parsed
 
 
@@ -95,28 +80,18 @@ async def generate_personal_analysis(
 
     prompt = PERSONAL_ANALYSIS_PROMPT.format(
         title=article.title,
-        category=article.category,
+        category=category_value(article.category),
         summary=summary,
-        content=article.content,
         related_articles=format_related_articles(related_articles),
         reference_links=REFERENCE_LINK_NAMES,
         age=user.age,
-        gender=user.gender,
-        region=user.region,
-        job=user.job,
-        interest=user.interest,
-        purpose=user.purpose,
+        gender=user.gender.value,
+        region=user.region.value,
+        job=user.job.value,
+        interest=user.interest.value,
+        purpose=user.purpose.value,
         extra_information=user.filtered_extra_information,
     )
-
-    ### Groq
-    # response = await create_json_completion(
-    #     [
-    #         {"role": "system", "content": SYSTEM_JSON_PROMPT},
-    #         {"role": "user", "content": prompt},
-    #     ]
-    # )
-    # raw_text = response.choices[0].message.content.strip()
 
     ### OpenAI
     response = await create_json_completion(
@@ -124,23 +99,21 @@ async def generate_personal_analysis(
             {"role": "system", "content": SYSTEM_JSON_PROMPT},
             {"role": "user", "content": prompt},
         ],
-        response_format=PersonalAnalysis,
+        response_format=PersonalAnalysisBeforeSearch,
     )
 
     parsed = response.choices[0].message.parsed.model_dump()
 
-    # LLM이 고른 창구 이름을 등록된 주소로 바꾼다. 목록에 없으면 빈 값이 된다.
-    parsed["link"] = resolve_reference_link(parsed.get("link_name"))
-    if not parsed["link"]:
-        parsed["link_name"] = ""
+    # LLM이 고른 창구 이름을 등록된 주소로 바꾼다.
+    # 목록에 없는 이름은 링크를 만들 수 없어 제외되며, 웹 검색 단계에서 처리한다.
+    parsed["links"] = resolve_reference_links(parsed.pop("link_names", []))
 
     """
     returns: dict
         {
             "effect": str,
             "solution": str,
-            "link_name": str,
-            "link": str,
+            "links": [{"title": str, "url": str}],
         }
     """
     return parsed
@@ -176,28 +149,31 @@ async def filter_user_extra_information(
 
 
 # 기사 임베딩 생성 함수
-# LLM으로 생성된 기사 요약본을 통해 임베딩 생성
-async def generate_article_embedding(article: Article | dict) -> list[float]:
+# LLM으로 생성된 기사 요약본을 통해 임베딩 생성 (+필요시 해설 생성)
+async def generate_article_embedding(article: Article | dict):
     # SQLAlchemy 모델에는 model_dump()가 없으므로 필요한 필드만 꺼내 dict로 변환
     if type(article) is Article:
         article = {
             "title": article.title,
-            "category": article.category,
+            "category": category_value(article.category),
             "content": article.content,
             "summary": article.summary,
         }
 
-    # 기사 요약 불러오기, 없을 시 생성
+    # 기사 요약 불러오기, 없을 시 생성해서 함께 반환
     if article["summary"] is None:
         common_analysis = await generate_common_analysis(article)
         summary = common_analysis["summary"]
+        is_analysis_created = True
     else:
         summary = article["summary"]
+        is_analysis_created = False
 
     embeddings = await get_embedding(summary)
     article_embedding = embeddings[0]
     article_embedding /= np.linalg.norm(article_embedding)  # 벡터 정규화
-    return article_embedding
+
+    return article_embedding, (common_analysis if is_analysis_created else {})
 
 
 # 사용자 프로필 정보 임베딩 생성 함수
@@ -205,10 +181,10 @@ async def generate_article_embedding(article: Article | dict) -> list[float]:
 async def generate_user_profile_embedding(user: User) -> list[float]:
     # 사용자 프로필 정보를 자연스러운 구어체 문장형으로 묘사하여 초기 프로필 임베딩 생성
     profile_text = [
-        f"이 사용자는 {user.age}세이며, 성별은 {user.gender}입니다.",
-        f"현재 직업은 {user.job}이며, 주로 {user.region} 지역의 소식에 관심이 있습니다.",
-        f"평소에 {user.interest} 분야의 뉴스를 즐겨 읽습니다.",
-        f"뉴스를 읽는 주된 목적은 {user.purpose}입니다.",
+        f"이 사용자는 {user.age}세이며, 성별은 {user.gender.value}자입니다.",
+        f"현재 직업은 {user.job.value}이며, 주로 {user.region.value} 지역의 소식에 관심이 있습니다.",
+        f"평소에 {user.interest.value} 분야의 뉴스를 즐겨 읽습니다.",
+        f"뉴스를 읽는 주된 목적은 {user.purpose.value}입니다.",
         f"추가적인 사용자 성향 정보는 다음과 같습니다: {user.extra_information}",
     ]
     embeddings = await get_embedding(

@@ -11,7 +11,7 @@ import aiohttp
 import feedparser
 from bs4 import BeautifulSoup
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -217,39 +217,14 @@ async def process_yonhap_rss(
                         # Test
                         print("[LOG]  success: " + str(analysis["success"]))
                         print("[LOG] category: " + analysis["category"])
-                        print("[LOG]  summary: " + analysis["summary"])
 
                         if analysis["success"] == False:
                             print(f"[SKIP]  카테고리 이외 기사")
                             continue
 
                         # 세계 뉴스에서 LLM으로 분류된 카테고리 반영
-                        if analysis["category"] is not None:
-                            category = CategoryEnum[analysis["category"]]
-
-                        embedding = await generate_article_embedding(
-                            {
-                                "title": title,
-                                "content": content,
-                                "category": category.value,
-                                "summary": analysis["summary"],
-                            }
-                        )
-
-                        ## 테스트할 때 주석처리하기
-                        ## 유사도 지나치게 높은 기사 필터링
-                        if (
-                            embedding is not None
-                            and article_crud.exists_similar_article(
-                                db,
-                                datetime.now() - timedelta(hours=24),
-                                source_url,  # DB 저장 전 id가 주어지지 않은 시점에서는 source_url(unique not null)로 구분
-                                embedding,
-                                0.1,  # 유사도 기준 수정 필요
-                            )
-                        ):
-                            print(f"[SKIP] 유사한 기사")
-                            continue
+                        if category is None:
+                            category = CategoryEnum(analysis["category"])
 
                     except Exception as exc:
                         print(f"[ERROR] 공통 해설 생성 실패: {exc}")
@@ -258,7 +233,6 @@ async def process_yonhap_rss(
                             "summary": "공통 해설 생성 실패",
                             "keyword": {},
                         }
-                        embedding = None
 
                     results.append(
                         {
@@ -271,7 +245,6 @@ async def process_yonhap_rss(
                             "content": content,
                             "summary": analysis["summary"],
                             "keyword": analysis["keyword"],
-                            "embedding": embedding,
                         }
                     )
                 else:
@@ -290,8 +263,8 @@ async def process_yonhap_rss(
     except Exception as exc:
         raise DatabaseError(f"기사 정보 저장 실패: {exc}")
 
-    # finally:
-    #     db.close()
+    finally:
+        db.close()
 
 
 # 모든 카테고리에 대해 RSS 피드 수집

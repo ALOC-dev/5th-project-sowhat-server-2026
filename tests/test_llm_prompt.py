@@ -5,7 +5,7 @@ import pytest
 
 import app.services.llm_service as llm_service
 from app.schemas.common_analysis import CommonAnalysis, KeywordItem
-from app.schemas.personal_analysis import PersonalAnalysis
+from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch
 from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
     PERSONAL_ANALYSIS_PROMPT,
@@ -17,17 +17,39 @@ from app.services.llm_service import (
 )
 
 
+# enum 값이 한국어로 바뀌어 .value가 그대로 프롬프트에 들어간다
+def fake_article_namespace():
+    return SimpleNamespace(
+        title="경제뉴스",
+        category=SimpleNamespace(value="경제"),
+        content="국내 증시 변동성이 커지고 있다.",
+        summary="국내 증시 변동성이 커지고 있습니다.",
+    )
+
+
+def fake_user_namespace():
+    return SimpleNamespace(
+        age=20,
+        gender=SimpleNamespace(value="남"),
+        region=SimpleNamespace(value="서울"),
+        job=SimpleNamespace(value="학생"),
+        interest=SimpleNamespace(value="경제"),
+        purpose=SimpleNamespace(value="공부"),
+        filtered_extra_information="주식 투자를 처음 시작한 대학생이다.",
+    )
+
+
 # 공통 해설 프롬프트에 기사 정보와 출력 키가 잘 들어가는지 확인
 def test_common_analysis_prompt_contains_article_info():
     prompt = COMMON_ANALYSIS_PROMPT.format(
         title="경제뉴스",
-        category="ECONOMY",
+        category="경제",
         content="국내 증시 변동성이 커지고 있다.",
     )
 
     assert "뉴스 해설가" in prompt
     assert "제목: 경제뉴스" in prompt
-    assert "카테고리: ECONOMY" in prompt
+    assert "카테고리: 경제" in prompt
     assert "본문: 국내 증시 변동성이 커지고 있다." in prompt
     assert "요약문 작성 규칙" in prompt
     assert "키워드 작성 규칙" in prompt
@@ -37,31 +59,31 @@ def test_common_analysis_prompt_contains_article_info():
 def test_personal_analysis_prompt_contains_user_profile():
     prompt = PERSONAL_ANALYSIS_PROMPT.format(
         title="경제뉴스",
-        category="ECONOMY",
+        category="경제",
         summary="국내 증시 변동성이 커지고 있습니다.",
-        content="국내 증시 변동성이 커지고 있다.",
         related_articles="없음",
         reference_links=REFERENCE_LINK_NAMES,
         age=20,
-        gender="MALE",
-        region="SEOUL",
-        job="STUDENT",
-        interest="ECONOMY",
-        purpose="HABIT",
+        gender="남",
+        region="서울",
+        job="학생",
+        interest="경제",
+        purpose="공부",
         extra_information="주식 투자를 처음 시작한 대학생이다.",
     )
 
     assert "개인 맞춤형 뉴스 해설가" in prompt
     assert "제목: 경제뉴스" in prompt
-    assert "카테고리: ECONOMY" in prompt
+    assert "카테고리: 경제" in prompt
     assert "요약문: 국내 증시 변동성이 커지고 있습니다." in prompt
-    assert "본문: 국내 증시 변동성이 커지고 있다." in prompt
+    # 저작권 문제로 본문은 저장하지 않으므로 개인해설 입력에 본문이 없어야 한다
+    assert "본문:" not in prompt
     assert "나이: 20" in prompt
-    assert "성별: MALE" in prompt
-    assert "지역: SEOUL" in prompt
-    assert "직업: STUDENT" in prompt
-    assert "관심사: ECONOMY" in prompt
-    assert "뉴스 소비 목적: HABIT" in prompt
+    assert "성별: 남" in prompt
+    assert "지역: 서울" in prompt
+    assert "직업: 학생" in prompt
+    assert "관심사: 경제" in prompt
+    assert "뉴스 소비 목적: 공부" in prompt
     assert "추가 정보: 주식 투자를 처음 시작한 대학생이다." in prompt
     assert "effect 작성 규칙" in prompt
     assert "solution 작성 규칙" in prompt
@@ -139,10 +161,10 @@ async def test_generate_common_analysis_returns_keyword_list(monkeypatch):
 # 사용자 정보가 프롬프트에 반영되고 결과가 정상 반환되는지 확인
 @pytest.mark.asyncio
 async def test_generate_personal_analysis_returns_result(monkeypatch):
-    fake_parsed = PersonalAnalysis(
+    fake_parsed = PersonalAnalysisBeforeSearch(
         effect="이 뉴스는 경제에 관심 있는 학생에게 투자 시장의 변동성을 이해하는 데 도움이 될 수 있다.",
         solution="관련 기업의 공시를 금융감독원 전자공시시스템에서 확인해 보세요.",
-        link_name="금융감독원 전자공시시스템",
+        link_names=["금융감독원 전자공시시스템", "국가통계포털"],
     )
 
     fake_response = SimpleNamespace(
@@ -150,18 +172,18 @@ async def test_generate_personal_analysis_returns_result(monkeypatch):
     )
 
     async def fake_create_json_completion(messages, response_format):
-        assert response_format is PersonalAnalysis
+        assert response_format is PersonalAnalysisBeforeSearch
         assert messages[0]["role"] == "system"
         assert messages[1]["role"] == "user"
 
         user_prompt = messages[1]["content"]
         assert "제목: 경제뉴스" in user_prompt
-        assert "카테고리: ECONOMY" in user_prompt
+        assert "카테고리: 경제" in user_prompt
         assert "나이: 20" in user_prompt
-        assert "성별: MALE" in user_prompt
-        assert "지역: SEOUL" in user_prompt
-        assert "직업: STUDENT" in user_prompt
-        assert "관심사: ECONOMY" in user_prompt
+        assert "성별: 남" in user_prompt
+        assert "지역: 서울" in user_prompt
+        assert "직업: 학생" in user_prompt
+        assert "관심사: 경제" in user_prompt
         # 과거 유사 기사가 <참고 자료>로 전달되어야 한다
         assert "증시 변동성 확대" in user_prompt
 
@@ -171,21 +193,8 @@ async def test_generate_personal_analysis_returns_result(monkeypatch):
         llm_service, "create_json_completion", fake_create_json_completion
     )
 
-    fake_article = SimpleNamespace(
-        title="경제뉴스",
-        category="ECONOMY",
-        content="국내 증시 변동성이 커지고 있다.",
-        summary="국내 증시 변동성이 커지고 있습니다.",
-    )
-    fake_user = SimpleNamespace(
-        age=20,
-        gender="MALE",
-        region="SEOUL",
-        job="STUDENT",
-        interest="ECONOMY",
-        purpose="HABIT",
-        filtered_extra_information="주식 투자를 처음 시작한 대학생이다.",
-    )
+    fake_article = fake_article_namespace()
+    fake_user = fake_user_namespace()
     fake_related = [
         SimpleNamespace(
             published_at=datetime(2026, 5, 1),
@@ -199,16 +208,19 @@ async def test_generate_personal_analysis_returns_result(monkeypatch):
     assert result["effect"] == fake_parsed.effect
     assert result["solution"] == fake_parsed.solution
     # 등록된 창구 이름은 서버가 실제 주소로 변환한다
-    assert result["link"] == "https://dart.fss.or.kr"
+    assert result["links"] == [
+        {"title": "금융감독원 전자공시시스템", "url": "https://dart.fss.or.kr"},
+        {"title": "국가통계포털", "url": "https://kosis.kr"},
+    ]
 
 
 # 목록에 없는 창구 이름은 링크로 변환하지 않고 버린다
 @pytest.mark.asyncio
 async def test_generate_personal_analysis_drops_unknown_link(monkeypatch):
-    fake_parsed = PersonalAnalysis(
+    fake_parsed = PersonalAnalysisBeforeSearch(
         effect="효과",
         solution="해결책",
-        link_name="존재하지 않는 기관 누리집",
+        link_names=["존재하지 않는 기관 누리집"],
     )
 
     fake_response = SimpleNamespace(
@@ -222,23 +234,9 @@ async def test_generate_personal_analysis_drops_unknown_link(monkeypatch):
         llm_service, "create_json_completion", fake_create_json_completion
     )
 
-    fake_article = SimpleNamespace(
-        title="경제뉴스",
-        category="ECONOMY",
-        content="국내 증시 변동성이 커지고 있다.",
-        summary="국내 증시 변동성이 커지고 있습니다.",
-    )
-    fake_user = SimpleNamespace(
-        age=20,
-        gender="MALE",
-        region="SEOUL",
-        job="STUDENT",
-        interest="ECONOMY",
-        purpose="HABIT",
-        filtered_extra_information="",
+    result = await generate_personal_analysis(
+        fake_article_namespace(), fake_user_namespace()
     )
 
-    result = await generate_personal_analysis(fake_article, fake_user)
-
-    assert result["link"] == ""
-    assert result["link_name"] == ""
+    # 목록에 없는 이름은 링크로 만들 수 없어 제외된다 (웹 검색 단계에서 처리)
+    assert result["links"] == []
