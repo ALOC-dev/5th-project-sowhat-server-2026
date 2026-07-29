@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 import app.crud.user as crud
 import app.services.user as user_service
+from app.services.llm_service import filter_user_extra_information
 from app.core.config import settings
 from app.core.security import (
     create_access_token,
@@ -21,11 +22,18 @@ from app.schemas.user import LoginRequest, SignupRequest
 async def signup(db: Session, payload: SignupRequest) -> User:
     user_service._validate_create_user_payload(payload)
 
-    if crud.get_user_by_email(db, payload.login_id) is not None:
+    if crud.get_user_by_login_id(db, payload.login_id) is not None:
         raise DuplicateLoginIdError()
 
     user_data = payload.model_dump(exclude={"password"})
     user_data["hashed_password"] = hash_password(payload.password)
+
+    # 사용자가 입력한 추가 정보는 그대로 쓰지 않고 개인화에 쓸 수 있게 필터링한다.
+    # 이 값이 비면 개인해설 프롬프트의 '추가 정보' 입력이 통째로 빈 채로 들어간다.
+    filtered = await filter_user_extra_information(payload.extra_information)
+    user_data["filtered_extra_information"] = (
+        user_service._validate_user_extra_information(filtered)
+    )
 
     user = crud.create_user(db, user_data)
     return await user_service.attach_profile_embedding(db, user)
