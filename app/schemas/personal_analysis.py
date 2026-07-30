@@ -1,12 +1,20 @@
 from pydantic import BaseModel, ConfigDict
 
 
+# 검색 결과 중 선택한 인덱스 및 관련도 점수 반환
+class SelectedIndex(BaseModel):
+    index: int
+    score: int
+
+    # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
+    model_config = ConfigDict(from_attributes=True)
+
+
 # 링크 검색 결과 (제목, URL)
 class Link(BaseModel):
     title: str
     url: str
 
-    # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -16,7 +24,6 @@ class PersonalAnalysis(BaseModel):
     solution: str
     links: list[Link] = []
 
-    # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -27,5 +34,4 @@ class PersonalAnalysisBeforeSearch(BaseModel):
     solution: str
     link_names: list[str] = []
 
-    # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
     model_config = ConfigDict(from_attributes=True)
