@@ -12,9 +12,19 @@ from app.services.llm.prompts import (
     SYSTEM_JSON_PROMPT,
     FILTER_EXTRA_INFORMATION_PROMPT,
 )
+from app.services.llm.reference_links import (
+    REFERENCE_LINK_NAMES,
+    resolve_reference_links,
+)
 
 from app.schemas.common_analysis import CommonAnalysis
 from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch
+
+
+# 카테고리는 nullable이므로 값이 없을 수 있다.
+# 프롬프트가 빈 값을 받으면 기사 내용에 맞는 카테고리를 직접 채우도록 되어 있다.
+def category_value(category) -> str:
+    return category.value if category is not None else ""
 
 
 async def generate_common_analysis(article: Article | dict) -> dict:
@@ -22,7 +32,7 @@ async def generate_common_analysis(article: Article | dict) -> dict:
     if type(article) is Article:
         article = {
             "title": article.title,
-            "category": article.category.value,
+            "category": category_value(article.category),
             "content": article.content,
         }
 
@@ -46,11 +56,34 @@ async def generate_common_analysis(article: Article | dict) -> dict:
     return parsed
 
 
-async def generate_personal_analysis(article: Article, user: User) -> dict:
+# 과거 유사 기사를 프롬프트에 넣을 문자열로 변환
+def format_related_articles(related_articles: list[Article] | None) -> str:
+    if not related_articles:
+        return "없음"
+
+    return "\n".join(
+        f"- ({article.published_at:%Y년 %m월 %d일}) {article.title}\n  {article.summary}"
+        for article in related_articles
+    )
+
+
+async def generate_personal_analysis(
+    article: Article,
+    user: User,
+    related_articles: list[Article] | None = None,
+) -> dict:
+    # 개인해설은 요약문을 기사 골자로 삼으므로 요약이 없으면 먼저 생성한다
+    summary = article.summary
+    if summary is None:
+        common_analysis = await generate_common_analysis(article)
+        summary = common_analysis["summary"]
+
     prompt = PERSONAL_ANALYSIS_PROMPT.format(
         title=article.title,
-        category=article.category.value,
-        content=article.content,
+        category=category_value(article.category),
+        summary=summary,
+        related_articles=format_related_articles(related_articles),
+        reference_links=REFERENCE_LINK_NAMES,
         age=user.age,
         gender=user.gender.value,
         region=user.region.value,
@@ -71,6 +104,18 @@ async def generate_personal_analysis(article: Article, user: User) -> dict:
 
     parsed = response.choices[0].message.parsed.model_dump()
 
+    # LLM이 고른 창구 이름을 등록된 주소로 바꾼다.
+    # 목록에 없는 이름은 링크를 만들 수 없어 제외되며, 웹 검색 단계에서 처리한다.
+    parsed["links"] = resolve_reference_links(parsed.pop("link_names", []))
+
+    """
+    returns: dict
+        {
+            "effect": str,
+            "solution": str,
+            "links": [{"title": str, "url": str}],
+        }
+    """
     return parsed
 
 
@@ -110,7 +155,7 @@ async def generate_article_embedding(article: Article | dict):
     if type(article) is Article:
         article = {
             "title": article.title,
-            "category": article.category,
+            "category": category_value(article.category),
             "content": article.content,
             "summary": article.summary,
         }

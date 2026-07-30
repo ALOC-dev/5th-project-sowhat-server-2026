@@ -67,6 +67,38 @@ def find_similar_articles(
     return db.execute(stmt).scalars().all()
 
 
+# 개인해설에서 과거 유사 사례로 인용할 기사를 찾는 함수
+# 임베딩 거리 기준으로 현재 기사와 가까운 과거 기사를 고른다
+def find_related_past_articles(
+    db: Session,
+    article: Article,
+    top_k: int = 3,
+    min_distance: float = 0.05,
+    max_distance: float = 0.6,
+) -> list[Article]:
+    # 임베딩이나 요약이 없으면 인용할 근거를 만들 수 없다
+    if article.embedding is None:
+        return []
+
+    distance = Article.embedding.cosine_distance(article.embedding)
+
+    stmt = (
+        select(Article)
+        .where(
+            Article.id != article.id,
+            Article.published_at < article.published_at,
+            Article.embedding.isnot(None),
+            Article.summary.isnot(None),
+            # 거의 동일한 중복 기사는 과거 사례로서 의미가 없어 제외한다
+            distance > min_distance,
+            distance <= max_distance,
+        )
+        .order_by(distance)
+        .limit(top_k)
+    )
+    return db.execute(stmt).scalars().all()
+
+
 def get_article_by_id(db: Session, id: int) -> Article:
     return db.query(Article).filter(Article.id == id).first()
 

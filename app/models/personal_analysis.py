@@ -25,4 +25,5 @@ class PersonalAnalysis(Base):
     )
     effect = Column(Text, nullable=False)
     solution = Column(Text, nullable=False)
+    # solution에서 안내한 공식 창구의 제목과 주소 목록 (없으면 빈 목록)
     links = Column(JSON, nullable=True)

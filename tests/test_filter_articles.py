@@ -41,6 +41,7 @@ def setup_and_teardown_db():
     Base.metadata.drop_all(bind=engine)
 
 
+@pytest.mark.live
 async def test_irrelevant_articles():
     db = TestingSessionLocal()
 

@@ -7,6 +7,29 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.db.database import get_db, Base
 
+# ── 0. 외부 API 호출 테스트 실행 옵션 ─────────────────────────
+# 연합뉴스 크롤링과 OpenAI 호출이 실제로 일어나는 테스트는 기본 실행에서 제외한다.
+# 실행하려면 pytest에 --live 옵션을 준다.
+def pytest_addoption(parser):
+    parser.addoption(
+        "--live",
+        action="store_true",
+        default=False,
+        help="연합뉴스/OpenAI를 실제로 호출하는 테스트까지 실행한다",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--live"):
+        return
+
+    skip_live = pytest.mark.skip(reason="외부 API 호출 테스트. --live 옵션으로 실행")
+
+    for item in items:
+        if "live" in item.keywords:
+            item.add_marker(skip_live)
+
+
 # ── 1. 인메모리 SQLite DB 설정 ────────────────────────────────
 MOCK_DB_URL = "sqlite:///:memory:"  # Mock DB. 파일 대신 메모리에 DB 생성
 

@@ -203,6 +203,10 @@ class TestFetchRssEntries:
                 await fetch_rss_entries("https://fake-rss.com/error.xml")
 
 
+# 크롤러는 본문이 500자 미만이면 건너뛰므로 가짜 본문도 길이를 맞춘다
+FAKE_BODY = "본문 텍스트 " * 100
+
+
 # RSS 엔트리 가짜 데이터 (feedparser 엔트리처럼 .get()으로 접근 가능한 dict)
 def make_entry(i: int) -> dict:
     return {
@@ -240,14 +244,14 @@ class TestProcessYonhapRss:
         with (
             patch("app.services.schedule.fetch_rss_entries", return_value=fake_entries),
             patch(
-                "app.services.schedule.fetch_yonhap_body", return_value="본문 텍스트"
+                "app.services.schedule.fetch_yonhap_body", return_value=FAKE_BODY
             ),
         ):
             results = await process_yonhap_rss("테스트", "https://fake.com/rss.xml")
 
         assert len(results) == 2
         assert results[0]["title"] == "기사1"
-        assert results[0]["content"] == "본문 텍스트"
+        assert results[0]["content"] == FAKE_BODY
         assert results[0]["publisher"] == "연합뉴스"
 
     async def test_RSS_비어있으면_빈_리스트_반환(self, mock_process_deps):
@@ -262,7 +266,7 @@ class TestProcessYonhapRss:
             patch("app.services.schedule.fetch_rss_entries", return_value=fake_entries),
             patch(
                 "app.services.schedule.fetch_yonhap_body",
-                side_effect=["본문 텍스트", ""],
+                side_effect=[FAKE_BODY, ""],
             ),
         ):
             results = await process_yonhap_rss("테스트", "https://fake.com/rss.xml")
@@ -290,7 +294,7 @@ class TestProcessYonhapRss:
         fake_entries = [make_entry(i) for i in range(5)]
         with (
             patch("app.services.schedule.fetch_rss_entries", return_value=fake_entries),
-            patch("app.services.schedule.fetch_yonhap_body", return_value="본문"),
+            patch("app.services.schedule.fetch_yonhap_body", return_value=FAKE_BODY),
         ):
             results = await process_yonhap_rss(
                 "테스트", "https://fake.com/rss.xml", max_articles=2
@@ -302,7 +306,7 @@ class TestProcessYonhapRss:
         fake_entries = [make_entry(i) for i in range(10)]
         with (
             patch("app.services.schedule.fetch_rss_entries", return_value=fake_entries),
-            patch("app.services.schedule.fetch_yonhap_body", return_value="본문"),
+            patch("app.services.schedule.fetch_yonhap_body", return_value=FAKE_BODY),
         ):
             results = await process_yonhap_rss(
                 "테스트", "https://fake.com/rss.xml", max_articles=None
