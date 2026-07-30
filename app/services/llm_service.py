@@ -16,6 +16,9 @@ from app.services.llm.reference_links import (
     REFERENCE_LINK_NAMES,
     resolve_reference_links,
 )
+from app.services.llm.tavily_client import (
+    search_reference_links,
+)
 
 from app.schemas.common_analysis import CommonAnalysis
 from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch
@@ -104,9 +107,13 @@ async def generate_personal_analysis(
 
     parsed = response.choices[0].message.parsed.model_dump()
 
-    # LLM이 고른 창구 이름을 등록된 주소로 바꾼다.
-    # 목록에 없는 이름은 링크를 만들 수 없어 제외되며, 웹 검색 단계에서 처리한다.
-    parsed["links"] = resolve_reference_links(parsed.pop("link_names", []))
+    # LLM이 고른 창구 이름을 등록된 주소로 바꾸고,
+    # 목록에 없는 이름은 웹 검색으로 공식 주소를 찾는다.
+    # 링크는 해설의 부가 정보이므로 검색이 실패해도 매칭된 링크만 담아 응답한다.
+    links, unmatched = resolve_reference_links(parsed.pop("link_names", []))
+    links += await search_reference_links(unmatched)
+
+    parsed["links"] = links
 
     """
     returns: dict

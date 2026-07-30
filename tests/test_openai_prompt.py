@@ -130,7 +130,7 @@ async def test_personal_analysis_prompt():
                 response_format=PersonalAnalysisBeforeSearch,
             )
             parsed = response.choices[0].message.parsed.model_dump()
-            links = resolve_reference_links(parsed["link_names"])
+            links, unmatched = resolve_reference_links(parsed["link_names"])
 
             print(f"\n[개인맞춤해설: 사용자 {id}]")
             print("effect:", parsed["effect"])
@@ -138,9 +138,11 @@ async def test_personal_analysis_prompt():
             print("link_names:", parsed["link_names"] or "없음")
             for link in links:
                 print(f"  - {link['title']} {link['url']}")
+            if unmatched:
+                print("  (목록에 없어 검색으로 넘어갈 이름):", unmatched)
 
-            # 등록된 창구 이름만 링크로 변환된다
-            assert len(links) <= len(parsed["link_names"])
+            # 등록된 창구 이름만 링크로 변환되고, 나머지는 검색 대상으로 남는다
+            assert len(links) + len(unmatched) == len(parsed["link_names"])
         print()
 
 
