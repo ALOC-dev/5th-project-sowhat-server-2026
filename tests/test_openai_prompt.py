@@ -13,7 +13,10 @@ from app.crud.user import get_user_by_id
 from app.db.database import SessionLocal
 
 from app.schemas.common_analysis import CommonAnalysis
-from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch, SelectedIndex
+from app.schemas.personal_analysis import (
+    PersonalAnalysisBeforeSearch,
+    LinkSelectionResult,
+)
 from app.schemas.filtered_extra_information import FilteredExtraInformation
 from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
@@ -216,7 +219,6 @@ LINK_SEARCH_PROMPT = """
 
 
 async def test_select_search_result():
-
     solution = ""
     search_query = ""
     search_results = []
@@ -232,7 +234,7 @@ async def test_select_search_result():
             {"role": "system", "content": SYSTEM_JSON_PROMPT},
             {"role": "user", "content": prompt},
         ],
-        response_format=SelectedIndex,
+        response_format=LinkSelectionResult,
     )
 
     parsed = response.choices[0].message.parsed.model_dump()

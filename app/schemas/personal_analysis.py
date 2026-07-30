@@ -2,7 +2,8 @@ from pydantic import BaseModel, ConfigDict
 
 
 # 검색 결과 중 선택한 인덱스 및 관련도 점수 반환
-class SelectedIndex(BaseModel):
+class LinkSelectionResult(BaseModel):
+    success: bool
     index: int
     score: int
 
