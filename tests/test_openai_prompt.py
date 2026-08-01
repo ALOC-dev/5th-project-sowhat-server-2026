@@ -181,6 +181,7 @@ TEST_USER_IDS = [1, 2, 4]
 
 from app.services.llm.prompts import LINK_SEARCH_PROMPT
 from app.services.llm.tavily_client import get_client
+from app.services.llm.trusted_domains import TRUSTED_SUFFIXES, TRUSTED_HOSTS
 
 
 async def test_select_search_result():
@@ -224,7 +225,17 @@ async def test_select_search_result():
             tavily_client = get_client()
 
             for link_name in parsed["link_names"]:
-                search_response = await tavily_client.search(link_name, max_results=5)
+                include_domains = [
+                    *TRUSTED_HOSTS,
+                    *(suffix.lstrip(".") for suffix in TRUSTED_SUFFIXES),
+                ]
+
+                search_response = await tavily_client.search(
+                    link_name,
+                    include_domains=include_domains,
+                    max_results=5,
+                )
+
                 print(search_response.get("query"))
                 search_results = [
                     {
