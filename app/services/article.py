@@ -110,18 +110,9 @@ async def get_personal_analysis(
     # 화이트리스트에 없는 창구 이름은 Tavily 검색 후 2차 LLM이 선택한 실제 검색 결과를 links에 추가
     # search_link_names = personal_analysis.pop("link_names", [])
 
-    search_results = await search_link_names(personal_analysis.pop("link_names", []))
-
-    selected_links = []
-    for result in search_results:
-        if len(result.get("results")) > 0:
-            selected = await select_search_result(
-                solution=personal_analysis["solution"],
-                search_query=result.get("query"),
-                search_results=result.get("results"),
-            )
-            if selected is not None:
-                selected_links.append(selected)
+    selected_links = await select_search_result(
+        personal_analysis["solution"], personal_analysis.pop("link_names", [])
+    )
 
     personal_analysis["links"] = selected_links
 

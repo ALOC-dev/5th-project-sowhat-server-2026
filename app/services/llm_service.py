@@ -128,68 +128,79 @@ async def generate_personal_analysis(
 
 
 async def select_search_result(
-    solution: str, search_query: str, search_results: list[dict]
-) -> dict | None:
+    solution: str,
+    link_names: list[str],
+) -> list[dict]:
 
-    if not search_results:
-        return None
+    all_search_responses = await search_link_names(link_names)
+    if not all_search_responses:
+        return []
 
-    prompt = LINK_SEARCH_PROMPT.format(
-        solution=solution,
-        search_query=search_query,
-        search_results=json.dumps(
-            search_results,
-            ensure_ascii=False,
-            indent=2,
-        ),
-    )
+    selected_results = []
 
-    try:
-        response = await create_json_completion(
-            messages=[
-                {"role": "system", "content": SYSTEM_JSON_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
-            response_format=LinkSelectionResult,
+    for sr in all_search_responses:
+        search_query = sr.get("query")
+        search_results = sr.get("results")
+
+        if len(search_results) == 0:
+            continue
+
+        prompt = LINK_SEARCH_PROMPT.format(
+            solution=solution,
+            search_query=search_query,
+            search_results=search_results,
         )
-    except Exception as exc:
+
+        try:
+            response = await create_json_completion(
+                messages=[
+                    {"role": "system", "content": SYSTEM_JSON_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                response_format=LinkSelectionResult,
+            )
+        except Exception as exc:
+            print(
+                "[ERROR] 검색 결과 선택 LLM 호출 실패: search_query=%s, error=%s",
+                search_query,
+                exc,
+            )
+            continue
+
+        parsed = response.choices[0].message.parsed
+
+        if not parsed.success or parsed.index is None:
+            continue
+
+        if not 0 <= parsed.index < len(search_results):
+            print(
+                "[ERROR] 검색 결과 선택 index 범위 오류: search_query=%s, index=%s, count=%s",
+                search_query,
+                parsed.index,
+                len(search_results),
+            )
+            continue
+
+        selection = search_results[parsed.index]
+
         print(
-            "[ERROR] 검색 결과 선택 LLM 호출 실패: search_query=%s, error=%s",
+            "[INFO] 검색 결과 선택 완료: search_query=%s, index=%s, score=%s, "
+            "title=%s, url=%s",
             search_query,
-            exc,
+            parsed.index,
+            parsed.score,
+            selection["title"],
+            selection["url"],
         )
-        return []
 
-    selection = response.choices[0].message.parsed
-
-    if not selection.success or selection.index is None:
-        return []
-
-    if not 0 <= selection.index < len(search_results):
-        print(
-            "[ERROR] 검색 결과 선택 index 범위 오류: search_query=%s, index=%s, count=%s",
-            search_query,
-            selection.index,
-            len(search_results),
+        selected_results.append(
+            {
+                "title": selection["title"],
+                "url": selection["url"],
+            }
         )
-        return []
 
-    selected_result = search_results[selection.index]
-
-    print(
-        "[INFO] 검색 결과 선택 완료: search_query=%s, index=%s, score=%s, "
-        "title=%s, url=%s",
-        search_query,
-        selection.index,
-        selection.score,
-        selected_result["title"],
-        selected_result["url"],
-    )
-
-    return {
-        "title": selected_result["title"],
-        "url": selected_result["url"],
-    }
+    return selected_results
 
 
 # 채팅으로 사용자 추가정보 필터링을 요청하는 함수
