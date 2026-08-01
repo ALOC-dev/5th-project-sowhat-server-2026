@@ -5,6 +5,8 @@
 (이전에는 이 파일에 프롬프트 사본을 두고 수정해 운영 프롬프트와 내용이 갈렸다.)
 """
 
+import json
+
 import pytest
 
 from app.services.llm.openai_client import create_json_completion
@@ -13,13 +15,17 @@ from app.crud.user import get_user_by_id
 from app.db.database import SessionLocal
 
 from app.schemas.common_analysis import CommonAnalysis
-from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch
+from app.schemas.personal_analysis import (
+    LinkSelectionResult,
+    PersonalAnalysisBeforeSearch,
+)
 from app.schemas.filtered_extra_information import FilteredExtraInformation
 from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
     PERSONAL_ANALYSIS_PROMPT,
     SYSTEM_JSON_PROMPT,
     FILTER_EXTRA_INFORMATION_PROMPT,
+    LINK_SEARCH_PROMPT,
 )
 from app.services.llm.reference_links import (
     REFERENCE_LINK_NAMES,
@@ -173,3 +179,101 @@ async def test_personal_analysis_prompt():
 #         print(test_extra_information)
 #         print("[필터링 결과]")
 #         print(result.model_dump())
+
+
+@pytest.mark.live
+async def test_link_search_prompt():
+    test_cases = [
+        {
+            "name": "공식 기관 페이지 선택",
+            "solution": (
+                "청년 지원 정책의 신청 조건과 접수 일정을 "
+                "고용노동부 공식 누리집에서 확인해 보세요."
+            ),
+            "search_query": "고용노동부 청년 지원 정책",
+            "category": "사회",
+            "search_results": [
+                {
+                    "index": 0,
+                    "title": "청년 지원 정책 후기와 신청 팁",
+                    "url": "https://example-blog.com/youth-policy",
+                    "category": "사회",
+                },
+                {
+                    "index": 1,
+                    "title": "고용노동부 청년정책 안내",
+                    "url": "https://www.moel.go.kr/youth-policy",
+                    "category": "사회",
+                },
+                {
+                    "index": 2,
+                    "title": "청년 고용 관련 뉴스",
+                    "url": "https://example-news.com/youth-employment",
+                    "category": "사회",
+                },
+            ],
+            "expected_index": 1,
+        },
+        {
+            "name": "관련 결과 없음",
+            "solution": (
+                "국민연금공단 공식 누리집에서 "
+                "예상 연금액과 가입 내역을 확인해 보세요."
+            ),
+            "search_query": "국민연금공단 예상 연금액",
+            "category": "경제",
+            "search_results": [
+                {
+                    "index": 0,
+                    "title": "국내 주식시장 전망",
+                    "url": "https://example.com/stock",
+                    "category": "경제",
+                },
+                {
+                    "index": 1,
+                    "title": "퇴직연금 상품 비교",
+                    "url": "https://example.com/retirement",
+                    "category": "경제",
+                },
+            ],
+            "expected_index": None,
+        },
+    ]
+
+    for test_case in test_cases:
+        prompt = LINK_SEARCH_PROMPT.format(
+            solution=test_case["solution"],
+            search_query=test_case["search_query"],
+            category=test_case["category"],
+            search_results=json.dumps(
+                test_case["search_results"],
+                ensure_ascii=False,
+                indent=2,
+            ),
+        )
+
+        response = await create_json_completion(
+            messages=[
+                {"role": "system", "content": SYSTEM_JSON_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            response_format=LinkSelectionResult,
+        )
+
+        parsed = response.choices[0].message.parsed
+
+        print(f"\n[{test_case['name']}]")
+        print("solution:", test_case["solution"])
+        print("search_query:", test_case["search_query"])
+        print("search_results:", test_case["search_results"])
+        print("selection:", parsed.model_dump())
+
+        if test_case["expected_index"] is None:
+            assert parsed.success is False
+            assert parsed.index is None
+            assert parsed.score is None
+        else:
+            assert parsed.success is True
+            assert parsed.index == test_case["expected_index"]
+            assert parsed.score is not None
+            assert parsed.score >= 3

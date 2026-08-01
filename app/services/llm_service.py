@@ -1,21 +1,30 @@
-# import json
+import json
 import numpy as np
 
 # from app.services.llm.groq_client import create_json_completion
 from app.models.article import Article
 from app.models.user import User
+from app.schemas.common_analysis import CommonAnalysis
 from app.schemas.filtered_extra_information import FilteredExtraInformation
+from app.schemas.personal_analysis import (
+    LinkSelectionResult,
+    PersonalAnalysisBeforeSearch,
+)
 from app.services.llm.openai_client import create_json_completion, get_embedding
 from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
     PERSONAL_ANALYSIS_PROMPT,
     SYSTEM_JSON_PROMPT,
     FILTER_EXTRA_INFORMATION_PROMPT,
+    LINK_SEARCH_PROMPT,
 )
 from app.services.llm.reference_links import (
+    REFERENCE_LINKS,
     REFERENCE_LINK_NAMES,
     resolve_reference_links,
 )
+
+from app.services.llm.tavily_client import search_link_name
 
 from app.schemas.common_analysis import CommonAnalysis
 from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch
@@ -93,7 +102,6 @@ async def generate_personal_analysis(
         extra_information=user.filtered_extra_information,
     )
 
-    ### OpenAI
     response = await create_json_completion(
         messages=[
             {"role": "system", "content": SYSTEM_JSON_PROMPT},
@@ -103,10 +111,17 @@ async def generate_personal_analysis(
     )
 
     parsed = response.choices[0].message.parsed.model_dump()
+    link_names = parsed.pop("link_names", [])
 
-    # LLM이 고른 창구 이름을 등록된 주소로 바꾼다.
-    # 목록에 없는 이름은 링크를 만들 수 없어 제외되며, 웹 검색 단계에서 처리한다.
-    parsed["links"] = resolve_reference_links(parsed.pop("link_names", []))
+    # 등록된 창구는 기존 화이트리스트 주소로 변환한다.
+    parsed["links"] = resolve_reference_links(link_names)
+
+    # 등록되지 않은 창구 이름은 Tavily 검색 단계로 전달한다.
+    parsed["search_link_names"] = [
+        link_name.strip()
+        for link_name in link_names
+        if link_name.strip() and link_name.strip() not in REFERENCE_LINKS
+    ]
 
     """
     returns: dict
@@ -114,10 +129,93 @@ async def generate_personal_analysis(
             "effect": str,
             "solution": str,
             "links": [{"title": str, "url": str}],
+            "search_link_names": [str],
         }
     """
     return parsed
 
+
+async def select_search_result(
+    solution: str,
+    search_query: str,
+    category: str,
+) -> list[dict]:
+    search_results = await search_link_name(search_query)
+
+    if not search_results:
+        return []
+
+    # 검색 결과에 0-based index와 기사 카테고리를 추가한다.
+    indexed_results = [
+        {
+            "index": index,
+            "title": result["title"],
+            "url": result["url"],
+            "category": category,
+        }
+        for index, result in enumerate(search_results)
+    ]
+
+    prompt = LINK_SEARCH_PROMPT.format(
+        solution=solution,
+        search_query=search_query,
+        category=category,
+        search_results=json.dumps(
+            indexed_results,
+            ensure_ascii=False,
+            indent=2,
+        ),
+    )
+
+    try:
+        response = await create_json_completion(
+            messages=[
+                {"role": "system", "content": SYSTEM_JSON_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            response_format=LinkSelectionResult,
+        )
+    except Exception as exc:
+        logger.warning(
+            "검색 결과 선택 LLM 호출 실패: search_query=%s, error=%s",
+            search_query,
+            exc,
+        )
+        return []
+
+    selection = response.choices[0].message.parsed
+
+    if not selection.success or selection.index is None:
+        return []
+
+    if not 0 <= selection.index < len(indexed_results):
+        logger.warning(
+            "검색 결과 선택 index 범위 오류: search_query=%s, index=%s, count=%s",
+            search_query,
+            selection.index,
+            len(indexed_results),
+        )
+        return []
+
+    selected_result = indexed_results[selection.index]
+
+    logger.info(
+        "검색 결과 선택 완료: search_query=%s, index=%s, score=%s, "
+        "title=%s, url=%s",
+        search_query,
+        selection.index,
+        selection.score,
+        selected_result["title"],
+        selected_result["url"],
+    )
+
+    return [
+        {
+            "title": selected_result["title"],
+            "url": selected_result["url"],
+        }
+    ]
+    
 
 # 채팅으로 사용자 추가정보 필터링을 요청하는 함수
 async def filter_user_extra_information(

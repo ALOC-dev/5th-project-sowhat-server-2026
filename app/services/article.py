@@ -14,6 +14,7 @@ from app.services.embedding_tasks import (
 from app.services.llm_service import (
     generate_common_analysis,
     generate_personal_analysis,
+    select_search_result,
 )
 from app.services.recommend import recommend_by_cosine_similarity
 
@@ -102,6 +103,18 @@ async def get_personal_analysis(
         user,
         related_articles,
     )
+
+    # 화이트리스트에 없는 창구 이름은 Tavily 검색 후 2차 LLM이 선택한 실제 검색 결과를 links에 추가
+    search_link_names = personal_analysis.pop("search_link_names", [])
+
+    for search_query in search_link_names:
+        selected_links = await select_search_result(
+            solution=personal_analysis["solution"],
+            search_query=search_query,
+            category=article.category.value if article.category is not None else "",
+        )
+
+        personal_analysis["links"].extend(selected_links)
 
     personal_crud.create_analysis(
         db,
