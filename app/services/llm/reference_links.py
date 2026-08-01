@@ -22,6 +22,28 @@ REFERENCE_LINKS: dict[str, str] = {
     "국민건강보험공단": "https://www.nhis.or.kr",
     "국민연금공단": "https://www.nps.or.kr",
     "법제처 국가법령정보센터": "https://www.law.go.kr",
+    # 프롬프트가 "정부 부처·공공기관"을 고르도록 안내하는데 목록이 12곳뿐이라
+    # 자주 나오는 창구가 매칭되지 않고 검색으로 넘어가던 문제를 줄이기 위해 추가한다.
+    "행정안전부": "https://www.mois.go.kr",
+    "기획재정부": "https://www.moef.go.kr",
+    "고용노동부": "https://www.moel.go.kr",
+    "보건복지부": "https://www.mohw.go.kr",
+    "교육부": "https://www.moe.go.kr",
+    "국토교통부": "https://www.molit.go.kr",
+    "산업통상자원부": "https://www.motie.go.kr",
+    "과학기술정보통신부": "https://www.msit.go.kr",
+    "환경부": "https://www.me.go.kr",
+    "중소벤처기업부": "https://www.mss.go.kr",
+    "금융위원회": "https://www.fsc.go.kr",
+    "공정거래위원회": "https://www.ftc.go.kr",
+    "질병관리청": "https://www.kdca.go.kr",
+    "기상청": "https://www.weather.go.kr",
+    "한국소비자원": "https://www.kca.go.kr",
+    "근로복지공단": "https://www.comwel.or.kr",
+    "한국주택금융공사": "https://www.hf.go.kr",
+    "한국토지주택공사": "https://www.lh.or.kr",
+    "대한법률구조공단": "https://www.klac.or.kr",
+    "국민권익위원회": "https://www.acrc.go.kr",
 }
 
 # 프롬프트에 넣을 허용 목록 문자열
@@ -36,18 +58,28 @@ def resolve_reference_link(link_name: str | None) -> str:
     return REFERENCE_LINKS.get(link_name.strip(), "")
 
 
-# 창구 이름 목록을 {title, url} 목록으로 변환한다.
-# 목록에 없는 이름은 링크를 만들 수 없으므로 제외한다.
-def resolve_reference_links(link_names: list[str] | None) -> list[dict]:
+# 창구 이름 목록을 (링크 목록, 목록에 없던 이름들)로 나눈다.
+# 목록에 없는 이름은 버리지 않고 돌려주어 웹 검색 단계에서 실제 주소를 찾게 한다.
+def resolve_reference_links(
+    link_names: list[str] | None,
+) -> tuple[list[dict], list[str]]:
     if not link_names:
-        return []
+        return [], []
 
     links = []
+    unmatched = []
 
     for name in link_names:
-        url = resolve_reference_link(name)
+        stripped = (name or "").strip()
+
+        if not stripped:
+            continue
+
+        url = resolve_reference_link(stripped)
 
         if url:
-            links.append({"title": name.strip(), "url": url})
+            links.append({"title": stripped, "url": url})
+        else:
+            unmatched.append(stripped)
 
-    return links
+    return links, unmatched
