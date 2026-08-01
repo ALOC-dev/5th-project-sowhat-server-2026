@@ -1,3 +1,5 @@
+import json
+
 from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
 
@@ -11,6 +13,7 @@ from app.services.embedding_tasks import (
     ensure_article_embedding,
     update_behavior_embedding,
 )
+from app.services.llm.tavily_client import search_link_names
 from app.services.llm_service import (
     generate_common_analysis,
     generate_personal_analysis,
@@ -105,22 +108,30 @@ async def get_personal_analysis(
     )
 
     # 화이트리스트에 없는 창구 이름은 Tavily 검색 후 2차 LLM이 선택한 실제 검색 결과를 links에 추가
-    search_link_names = personal_analysis.pop("search_link_names", [])
+    # search_link_names = personal_analysis.pop("link_names", [])
 
-    for search_query in search_link_names:
-        selected_links = await select_search_result(
-            solution=personal_analysis["solution"],
-            search_query=search_query,
-            category=article.category.value if article.category is not None else "",
-        )
+    search_results = await search_link_names(personal_analysis.pop("link_names", []))
 
-        personal_analysis["links"].extend(selected_links)
+    selected_links = []
+    for result in search_results:
+        if len(result.get("results")) > 0:
+            selected = await select_search_result(
+                solution=personal_analysis["solution"],
+                search_query=result.get("query"),
+                search_results=result.get("results"),
+            )
+            if selected is not None:
+                selected_links.append(selected)
+
+    personal_analysis["links"] = selected_links
 
     personal_crud.create_analysis(
         db,
         {
             "article_id": article_id,
             "user_id": user_id,
+            "title": article.title,
+            "category": article.category,
             **personal_analysis,
         },
     )

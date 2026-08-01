@@ -24,7 +24,7 @@ from app.services.llm.reference_links import (
     resolve_reference_links,
 )
 from app.services.llm.tavily_client import (
-    search_reference_links,
+    search_link_names,
 )
 
 from app.services.llm.tavily_client import search_link_name
@@ -114,15 +114,6 @@ async def generate_personal_analysis(
     )
 
     parsed = response.choices[0].message.parsed.model_dump()
-    link_names = parsed.pop("link_names", [])
-
-    # LLM이 고른 창구 이름을 등록된 주소로 바꾸고,
-    # 목록에 없는 이름은 웹 검색으로 공식 주소를 찾는다.
-    # 링크는 해설의 부가 정보이므로 검색이 실패해도 매칭된 링크만 담아 응답한다.
-    links, unmatched = resolve_reference_links(parsed.pop("link_names", []))
-    links += await search_reference_links(unmatched)
-
-    parsed["links"] = links
 
     """
     returns: dict
@@ -137,32 +128,17 @@ async def generate_personal_analysis(
 
 
 async def select_search_result(
-    solution: str,
-    search_query: str,
-    category: str,
-) -> list[dict]:
-    search_results = await search_link_name(search_query)
+    solution: str, search_query: str, search_results: list[dict]
+) -> dict | None:
 
     if not search_results:
-        return []
-
-    # 검색 결과에 0-based index와 기사 카테고리를 추가한다.
-    indexed_results = [
-        {
-            "index": index,
-            "title": result["title"],
-            "url": result["url"],
-            "category": category,
-        }
-        for index, result in enumerate(search_results)
-    ]
+        return None
 
     prompt = LINK_SEARCH_PROMPT.format(
         solution=solution,
         search_query=search_query,
-        category=category,
         search_results=json.dumps(
-            indexed_results,
+            search_results,
             ensure_ascii=False,
             indent=2,
         ),
@@ -177,8 +153,8 @@ async def select_search_result(
             response_format=LinkSelectionResult,
         )
     except Exception as exc:
-        logger.warning(
-            "검색 결과 선택 LLM 호출 실패: search_query=%s, error=%s",
+        print(
+            "[ERROR] 검색 결과 선택 LLM 호출 실패: search_query=%s, error=%s",
             search_query,
             exc,
         )
@@ -189,19 +165,19 @@ async def select_search_result(
     if not selection.success or selection.index is None:
         return []
 
-    if not 0 <= selection.index < len(indexed_results):
-        logger.warning(
-            "검색 결과 선택 index 범위 오류: search_query=%s, index=%s, count=%s",
+    if not 0 <= selection.index < len(search_results):
+        print(
+            "[ERROR] 검색 결과 선택 index 범위 오류: search_query=%s, index=%s, count=%s",
             search_query,
             selection.index,
-            len(indexed_results),
+            len(search_results),
         )
         return []
 
-    selected_result = indexed_results[selection.index]
+    selected_result = search_results[selection.index]
 
-    logger.info(
-        "검색 결과 선택 완료: search_query=%s, index=%s, score=%s, "
+    print(
+        "[INFO] 검색 결과 선택 완료: search_query=%s, index=%s, score=%s, "
         "title=%s, url=%s",
         search_query,
         selection.index,
@@ -210,13 +186,11 @@ async def select_search_result(
         selected_result["url"],
     )
 
-    return [
-        {
-            "title": selected_result["title"],
-            "url": selected_result["url"],
-        }
-    ]
-    
+    return {
+        "title": selected_result["title"],
+        "url": selected_result["url"],
+    }
+
 
 # 채팅으로 사용자 추가정보 필터링을 요청하는 함수
 async def filter_user_extra_information(

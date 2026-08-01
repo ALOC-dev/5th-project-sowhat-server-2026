@@ -37,6 +37,7 @@ class PersonalAnalysisBeforeSearch(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 # Tavily 검색 결과 중 2차 LLM이 선택한 결과
 class LinkSelectionResult(BaseModel):
     success: bool

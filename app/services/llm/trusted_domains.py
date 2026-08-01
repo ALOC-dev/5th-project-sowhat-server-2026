@@ -29,6 +29,19 @@ TRUSTED_HOSTS: frozenset[str] = frozenset(
     }
 )
 
+# 검색할 때 include_domains로 제한해서 사용하기 위한 도메인 목록
+TRUSTED_DOMAINS = [
+    "go.kr",
+    "or.kr",
+    "re.kr",
+    "ac.kr",
+    "gov",
+    "gov.uk",
+    "europa.eu",
+    "krx.co.kr",
+    "opinet.co.kr",
+]
+
 
 def is_trusted_url(url: str | None) -> bool:
     if not url:

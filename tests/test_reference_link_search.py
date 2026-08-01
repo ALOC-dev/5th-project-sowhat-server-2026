@@ -9,9 +9,8 @@ from app.services.llm.reference_links import resolve_reference_links
 from app.services.llm.trusted_domains import is_trusted_url
 from app.services.llm.tavily_client import (
     search_official_url,
-    search_reference_links,
+    search_link_names,
 )
-
 
 # ── 목록 매핑 ────────────────────────────────────────────────
 
@@ -128,7 +127,10 @@ async def test_다른_기관의_더_얕은_링크에_속지_않는다(fake_clien
         ]
     }
 
-    assert await search_official_url("창원시") == "https://www.changwon.go.kr/depart/main.do"
+    assert (
+        await search_official_url("창원시")
+        == "https://www.changwon.go.kr/depart/main.do"
+    )
 
 
 async def test_같은_깊이면_쿼리스트링_없는_쪽을_고른다(fake_client):
@@ -165,7 +167,7 @@ async def test_찾은_이름만_링크로_묶인다(fake_client):
 
     fake_client.search.side_effect = fake_search
 
-    links = await search_reference_links(["창원시", "없는기관"])
+    links = await search_link_names(["창원시", "없는기관"])
 
     assert links == [{"title": "창원시", "url": "https://www.changwon.go.kr"}]
 
@@ -173,5 +175,5 @@ async def test_찾은_이름만_링크로_묶인다(fake_client):
 # API 키가 없는 환경에서도 서버가 죽지 않아야 한다
 async def test_API_키가_없으면_검색을_건너뛴다():
     with patch.object(tavily_client, "get_client", return_value=None):
-        assert await search_reference_links(["창원시"]) == []
+        assert await search_link_names(["창원시"]) == []
         assert await search_official_url("창원시") is None
