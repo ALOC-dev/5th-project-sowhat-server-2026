@@ -19,6 +19,10 @@ import app.crud.article as article_crud
 from app.exceptions.infrastructure import DatabaseError, ExternalAPIError
 from app.db.database import SessionLocal
 from app.models.enums import CategoryEnum
+from app.services.embedding_tasks import (
+    create_article_embeddings,
+    ensure_article_embedding,
+)
 from app.services.llm_service import (
     generate_common_analysis,
     generate_article_embedding,
@@ -150,8 +154,8 @@ async def process_yonhap_rss(
     category_name: str,
     rss_url: str,
     max_articles: int | None = MAX_ARTICLES_PER_FEED,
-    db: Session = SessionLocal(),
 ) -> list[dict]:
+    db: Session = SessionLocal()
 
     print("=" * 60)
     print(f"[START] {category_name}: RSS 수집 시작")
@@ -254,7 +258,7 @@ async def process_yonhap_rss(
 
         if results:
             print(f"[INFO]  {len(results)}건 기사 수집 완료, DB 저장 시도")
-            article_crud.create_articles(db, results)
+            await create_article_embeddings(results)
         else:
             print("[INFO]  저장할 신규 기사 없음")
 
@@ -299,6 +303,28 @@ async def run_yonhap_crawling_periodically(interval_seconds: int = 60) -> None:
 
         elapsed = time.monotonic() - started_at
         await asyncio.sleep(max(0, interval_seconds - elapsed))
+
+
+import threading
+
+
+def _run_crawling_in_thread(interval_seconds: int) -> None:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(run_yonhap_crawling_periodically(interval_seconds))
+    finally:
+        loop.close()
+
+
+def start_crawling_thread(interval_seconds: int = 60) -> threading.Thread:
+    thread = threading.Thread(
+        target=_run_crawling_in_thread,
+        args=(interval_seconds,),
+        daemon=True,
+    )
+    thread.start()
+    return thread
 
 
 # 직접 실행
