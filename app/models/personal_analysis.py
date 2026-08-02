@@ -1,5 +1,6 @@
-from sqlalchemy import JSON, Column, ForeignKey, Integer, Text, UniqueConstraint
+from sqlalchemy import JSON, Column, Enum, ForeignKey, Integer, Text, UniqueConstraint
 from app.db.database import Base
+from app.models.enums import CategoryEnum
 
 
 class PersonalAnalysis(Base):
@@ -25,5 +26,8 @@ class PersonalAnalysis(Base):
     )
     effect = Column(Text, nullable=False)
     solution = Column(Text, nullable=False)
-    # solution에서 안내한 공식 창구의 제목과 주소 목록 (없으면 빈 목록)
-    links = Column(JSON, nullable=True)
+    links = Column(
+        JSON, nullable=True
+    )  # solution에서 안내한 공식 창구의 제목과 주소 목록 (없으면 빈 목록)
+    title = Column(Text, nullable=False)
+    category = Column(Enum(CategoryEnum, name="category_enum"), nullable=False)

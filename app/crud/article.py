@@ -6,6 +6,7 @@ import numpy as np
 
 from app.models.article import Article
 from sqlalchemy import delete, exists, select
+from sqlalchemy.exc import IntegrityError
 
 
 def create_article(db: Session, payload: dict) -> Article:
@@ -20,15 +21,33 @@ def create_article(db: Session, payload: dict) -> Article:
         raise
 
 
+# 기사를 건별 SAVEPOINT로 저장한다.
+# 피드를 동시에 수집하므로 같은 기사가 두 피드에 걸리면 source_url이 충돌할 수 있는데,
+# 한 트랜잭션으로 묶어 저장하면 중복 1건 때문에 배치 전체가 롤백돼 멀쩡한 기사까지 유실된다.
 def create_articles(db: Session, articles: list[dict]) -> list[Article]:
-    article_objects = [Article(**article) for article in articles]
+    created = []
+
+    for payload in articles:
+        article = Article(**payload)
+
+        try:
+            with db.begin_nested():
+                db.add(article)
+                db.flush()
+        except IntegrityError:
+            # 다른 피드가 먼저 저장한 기사다. 건너뛰고 나머지를 계속 저장한다.
+            print(f"[SKIP]  이미 저장된 기사: {payload.get('source_url')}")
+            continue
+
+        created.append(article)
+
     try:
-        db.add_all(article_objects)
         db.commit()
-        return article_objects
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise
+
+    return created
 
 
 # 최신 기사 최대 30개 불러오기 (overfetching 예방)

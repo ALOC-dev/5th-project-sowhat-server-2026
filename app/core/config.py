@@ -18,6 +18,9 @@ class Settings:
     )
     DATABASE_URL = os.getenv(key="DATABASE_URL")
 
+    # 참고 링크 웹 검색용. 없으면 검색 없이 REFERENCE_LINKS 매핑만 사용한다.
+    TAVILY_API_KEY = os.getenv(key="TAVILY_API_KEY")
+
     JWT_SECRET_KEY = os.getenv(key="JWT_SECRET_KEY", default="dev-secret-key")
     JWT_ALGORITHM = os.getenv(key="JWT_ALGORITHM", default="HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES = int(

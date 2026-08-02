@@ -11,12 +11,12 @@ class Article(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     title = Column(String(255), nullable=False)
-    source_url = Column(String(255), nullable=False)
+    source_url = Column(String(255), nullable=False, unique=True)
     published_at = Column(DateTime(timezone=True), nullable=False)
     publisher = Column(String(255), nullable=False)
     reporter = Column(String(255), nullable=False)
     category = Column(
-        Enum(CategoryEnum, name="category", create_type=False), nullable=True
+        Enum(CategoryEnum, name="category", create_type=False), nullable=False
     )
     content = Column(Text, nullable=False)
     summary = Column(Text, nullable=True)

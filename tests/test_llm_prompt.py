@@ -214,7 +214,8 @@ async def test_generate_personal_analysis_returns_result(monkeypatch):
     ]
 
 
-# 목록에 없는 창구 이름은 링크로 변환하지 않고 버린다
+# 목록에 없는 창구 이름은 웹 검색으로 넘어간다.
+# 검색이 주소를 찾지 못하면(또는 검색이 꺼져 있으면) 링크 없이 해설만 반환한다.
 @pytest.mark.asyncio
 async def test_generate_personal_analysis_drops_unknown_link(monkeypatch):
     fake_parsed = PersonalAnalysisBeforeSearch(
@@ -238,5 +239,7 @@ async def test_generate_personal_analysis_drops_unknown_link(monkeypatch):
         fake_article_namespace(), fake_user_namespace()
     )
 
-    # 목록에 없는 이름은 링크로 만들 수 없어 제외된다 (웹 검색 단계에서 처리)
+    # 검색이 주소를 찾지 못하면 링크는 비지만 해설 자체는 정상 반환된다
     assert result["links"] == []
+    assert result["effect"] == "효과"
+    assert result["solution"] == "해결책"
