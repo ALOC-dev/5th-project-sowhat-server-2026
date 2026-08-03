@@ -83,41 +83,50 @@ async def create_article_embeddings(results: list[dict]):
     db = SessionLocal()
     THRESHOLD = 0.25
 
-    to_create = []
+    to_create = []  # 필터링된 기사를 저장할 배열
 
-    for result in results:
-        embedding, _ = await generate_article_embedding(result)
-        if embedding is not None and article_crud.exists_similar_article(
-            db,
-            datetime.now() - timedelta(hours=24),
-            0,
-            embedding,
-            THRESHOLD,
-        ):
-            print(f"[DELETE] DB 내 지나치게 유사한 기사 존재: {result["title"]}")
-            continue
+    try:
+        for result in results:
+            # 각 기사에 대해 임베딩 생성 요청
+            embedding, _ = await generate_article_embedding(result)
 
-        exists_similar_in_batch = False
-        for tc in to_create:
-            cd = cosine_distances(
-                np.array(embedding).reshape(1, -1),
-                np.array(tc["embedding"]).reshape(1, -1),
-            )
-            print(cd)
-            if cd <= THRESHOLD:
-                exists_similar_in_batch = True
-                print(
-                    f"[DELETE] 배치 내 지나치게 유사한 기사 존재: {result["title"]}, 유사도 {cd}"
+            # DB 내에 유사한 기사 존재하면 저장 안 하고 넘어감
+            if embedding is not None and article_crud.exists_similar_article(
+                db,
+                datetime.now() - timedelta(hours=24),
+                0,
+                embedding,
+                THRESHOLD,
+            ):
+                print(f"[DELETE] DB 내 지나치게 유사한 기사 존재: {result["title"]}")
+                continue
+
+            # 같은 배치 내에 유사한 기사가 존재하면 저장 안 하고 넘어감
+            exists_similar_in_batch = False
+            for tc in to_create:
+                cd = cosine_distances(
+                    np.array(embedding).reshape(1, -1),
+                    np.array(tc["embedding"]).reshape(1, -1),
                 )
-                break
-        if exists_similar_in_batch:
+                print(cd)  # test
+                if cd <= THRESHOLD:
+                    exists_similar_in_batch = True
+                    print(
+                        f"[DELETE] 배치 내 지나치게 유사한 기사 존재: {result["title"]}, 유사도 {cd}"
+                    )
+                    break
 
-            continue
+            if exists_similar_in_batch:
+                continue
 
-        result["embedding"] = embedding
-        to_create.append(result)
+            result["embedding"] = embedding
+            to_create.append(result)
 
-    article_crud.create_articles(db, to_create)
+        # 유사도 필터링에 통과한 기사들만 DB에 저장
+        article_crud.create_articles(db, to_create)
+
+    finally:
+        db.close()
 
 
 # 사용자가 클릭한 기사를 행동 임베딩에 반영 (기존 0.9 : 기사 0.1 가중합 후 정규화)
