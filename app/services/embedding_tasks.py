@@ -138,7 +138,7 @@ async def update_behavior_embedding(user_id: int, article_id: int) -> None:
         if user is None or article is None:
             return
 
-        _, behavior_embedding = await get_or_create_user_embedding(user)
+        _, behavior_embedding = await get_or_create_user_embedding(db, user)
 
         article_embedding = await _get_or_create_article_embedding(db, article)
 

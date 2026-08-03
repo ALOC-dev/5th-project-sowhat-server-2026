@@ -49,12 +49,6 @@ def health():
     return {"status": "ok"}  # 서버 정상 동작 여부 확인용
 
 
-# robots.txt 수집 막기
-@app.get("/robots.txt", response_class=PlainTextResponse)
-async def robots():
-    return "User-agent: *\nDisallow: /\n"
-
-
 @app.middleware("http")
 async def add_noindex(request, call_next):
     response = await call_next(request)
