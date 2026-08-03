@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 import numpy as np
 
@@ -132,12 +133,17 @@ async def select_search_result(
     link_names: list[str],
 ) -> list[dict]:
 
+    time_start = datetime.now()
     all_search_responses = await search_link_names(link_names)
+    time_elapsed = datetime.now() - time_start
+    print("[Tavily 검색]", time_elapsed)
+
     if not all_search_responses:
         return []
 
     selected_results = []
 
+    time_start = datetime.now()
     for sr in all_search_responses:
         search_query = sr.get("query")
         search_results = sr.get("results")
@@ -199,6 +205,8 @@ async def select_search_result(
                 "url": selection["url"],
             }
         )
+    time_elapsed = datetime.now() - time_start
+    print("[검색 결과 선정]", time_elapsed)
 
     return selected_results
 

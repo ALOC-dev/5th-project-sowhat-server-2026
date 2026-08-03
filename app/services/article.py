@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 
 from fastapi import BackgroundTasks
@@ -13,7 +14,6 @@ from app.services.embedding_tasks import (
     ensure_article_embedding,
     update_behavior_embedding,
 )
-from app.services.llm.tavily_client import search_link_names
 from app.services.llm_service import (
     generate_common_analysis,
     generate_personal_analysis,
@@ -37,7 +37,6 @@ async def get_recommended_articles(db: Session, user_id: int) -> list[Article]:
     if user is None:
         raise UserNotFoundError()
 
-    # top_20_articles = await recommend_service.recommend_by_weights(db, user) # recommend.py로 이관한 가중치 추천 로직 호출
     top_20_articles = await recommend_by_cosine_similarity(db, user)
 
     for article in top_20_articles:
@@ -68,10 +67,11 @@ async def get_common_analysis(
             },
         )
 
-    # 기사 임베딩은 당장 필요하지 않으므로 응답 후 백그라운드에서 생성
+    # 기사 임베딩이 없을 경우 백그라운드에서 생성
     if article.embedding is None:
         background_tasks.add_task(ensure_article_embedding, article_id)
 
+    article.content = article.content[:120] + "..."
     return article
 
 
@@ -101,11 +101,17 @@ async def get_personal_analysis(
     # 과거 유사 기사를 함께 넘겨 개인해설이 지어낸 사례 대신 실제 보도를 근거로 삼게 한다
     related_articles = article_crud.find_related_past_articles(db, article)
 
+    time_start = datetime.now()
     personal_analysis = await generate_personal_analysis(
         article,
         user,
         related_articles,
     )
+    time_elapsed = datetime.now() - time_start
+    print("[개인 해설 생성]", time_elapsed)
+
+    # 여기서 select_search_result를 백그라운드로 빼고싶다...
+    # 아님 프론트에서 선 해설 요청 -> 후 링크 요청으로 따로 만들어..?
 
     # 화이트리스트에 없는 창구 이름은 Tavily 검색 후 2차 LLM이 선택한 실제 검색 결과를 links에 추가
     # search_link_names = personal_analysis.pop("link_names", [])

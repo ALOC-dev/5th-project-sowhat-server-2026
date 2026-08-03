@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 from app.routers import articles, users, auth
 from app.services.schedule import (
     run_yonhap_crawling_periodically,
@@ -46,3 +47,16 @@ register_exception_handlers(app)
 @app.get("/health")
 def health():
     return {"status": "ok"}  # 서버 정상 동작 여부 확인용
+
+
+# robots.txt 수집 막기
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def robots():
+    return "User-agent: *\nDisallow: /\n"
+
+
+@app.middleware("http")
+async def add_noindex(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response

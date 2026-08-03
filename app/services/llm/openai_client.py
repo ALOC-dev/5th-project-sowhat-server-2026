@@ -10,6 +10,7 @@ def create_json_completion(messages: list[dict], response_format: type):
         model=settings.OPENAI_COMPLETION_MODEL,
         messages=messages,
         response_format=response_format,
+        store=False,
     )
 
 
