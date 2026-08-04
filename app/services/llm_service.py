@@ -189,6 +189,11 @@ async def select_search_result(
 
         selection = search_results[parsed.index]
 
+        # 검색 결과의 제목에서 필요없는 문자를 없앤다.
+        selection["title"] = (
+            selection["title"].replace("\n", "").replace("\r", "").replace("\t", "")
+        )
+
         print(
             "[INFO] 검색 결과 선택 완료: search_query=%s, index=%s, score=%s, "
             "title=%s, url=%s",
