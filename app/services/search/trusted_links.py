@@ -77,11 +77,11 @@ TRUSTED_DOMAINS = [
     "gov",
     "gov.uk",
     "europa.eu",
-    "gov.kr",
-    "kosis.kr",
-    "krx.co.kr",
-    "opinet.co.kr",
-    "petronet.co.kr",
+    # "gov.kr",
+    # "kosis.kr",
+    # "krx.co.kr",
+    # "opinet.co.kr",
+    # "petronet.co.kr",
 ]
 
 TRUSTED_LINK_NAMES = "\n".join(TRUSTED_HOSTS.keys())

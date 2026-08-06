@@ -89,6 +89,7 @@ async def generate_personal_analysis(
         summary=summary,
         related_articles=format_related_articles(related_articles),
         reference_links=TRUSTED_LINK_NAMES,
+        username=user.username,
         age=user.age,
         gender=user.gender.value,
         region=user.region.value,
@@ -126,6 +127,9 @@ async def select_search_result(
     solution: str,
     link_targets: list[dict],
 ) -> list[dict]:
+
+    if link_targets == []:
+        return []
 
     time_start = datetime.now()
     all_search_responses = await search_link_targets(link_targets)
@@ -196,6 +200,13 @@ async def select_search_result(
                 selection["url"],
             )
         )
+
+        # 이미 있는 링크와 같으면 버린다.
+        selected_urls = [sr["url"][: sr["url"].index("?")] for sr in selected_results]
+
+        if selection["url"] in selected_urls:
+            print("[SKIP] 중복 링크")
+            continue
 
         selected_results.append(
             {
