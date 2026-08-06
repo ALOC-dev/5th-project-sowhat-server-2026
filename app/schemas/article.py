@@ -8,7 +8,7 @@ class ArticlePreviewResponse(BaseModel):
     published_at: datetime
     publisher: str
     content: str
-    category: str
+    category: str | None = None  # 임시로 None 처리 가능, 실제 서비스 시 삭제
 
     # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
     model_config = ConfigDict(from_attributes=True)
@@ -21,7 +21,7 @@ class ArticleDetailResponse(BaseModel):
     published_at: datetime
     publisher: str
     reporter: str
-    category: str
+    category: str | None = None
     content: str
     summary: str
     # [{"word": "단어", "description": "뜻 설명"}] 형태의 키워드 JSON

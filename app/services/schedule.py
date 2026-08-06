@@ -13,15 +13,15 @@ from bs4 import BeautifulSoup
 import time
 from datetime import datetime
 
-from sqlalchemy.orm import Session
-
 import app.crud.article as article_crud
 from app.exceptions.infrastructure import DatabaseError, ExternalAPIError
 from app.db.database import SessionLocal
 from app.models.enums import CategoryEnum
+from app.services.embedding_tasks import (
+    create_article_embeddings,
+)
 from app.services.llm_service import (
     generate_common_analysis,
-    generate_article_embedding,
 )
 
 # 수집 대상 RSS 피드 목록
@@ -150,13 +150,12 @@ async def process_yonhap_rss(
     category_name: str,
     rss_url: str,
     max_articles: int | None = MAX_ARTICLES_PER_FEED,
-    db: Session = SessionLocal(),
 ) -> list[dict]:
 
     print("=" * 60)
     print(f"[START] {category_name}: RSS 수집 시작")
 
-    # db = SessionLocal()
+    db = SessionLocal()
 
     try:
         entries = await fetch_rss_entries(rss_url)
@@ -194,6 +193,17 @@ async def process_yonhap_rss(
                 # DB 중복 검사
                 if article_crud.get_article_by_source_url(db, source_url):
                     print("[SKIP] 이미 저장된 기사")
+                    continue
+
+                # 배치 내 중복 검사
+                exists_same_url = False
+                for r in results:
+                    if source_url == r["source_url"]:
+                        exists_same_url = True
+                        break
+
+                if exists_same_url:
+                    print("[SKIP] 배치 내 같은 URL의 기사 존재")
                     continue
 
                 content = await fetch_yonhap_body(session, source_url)
@@ -254,7 +264,7 @@ async def process_yonhap_rss(
 
         if results:
             print(f"[INFO]  {len(results)}건 기사 수집 완료, DB 저장 시도")
-            article_crud.create_articles(db, results)
+            await create_article_embeddings(results)
         else:
             print("[INFO]  저장할 신규 기사 없음")
 
@@ -299,6 +309,28 @@ async def run_yonhap_crawling_periodically(interval_seconds: int = 60) -> None:
 
         elapsed = time.monotonic() - started_at
         await asyncio.sleep(max(0, interval_seconds - elapsed))
+
+
+import threading
+
+
+def _run_crawling_in_thread(interval_seconds: int) -> None:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(run_yonhap_crawling_periodically(interval_seconds))
+    finally:
+        loop.close()
+
+
+def start_crawling_thread(interval_seconds: int = 60) -> threading.Thread:
+    thread = threading.Thread(
+        target=_run_crawling_in_thread,
+        args=(interval_seconds,),
+        daemon=True,
+    )
+    thread.start()
+    return thread
 
 
 # 직접 실행

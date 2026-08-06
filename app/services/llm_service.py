@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 import numpy as np
 
@@ -132,12 +133,17 @@ async def select_search_result(
     link_names: list[str],
 ) -> list[dict]:
 
+    time_start = datetime.now()
     all_search_responses = await search_link_names(link_names)
+    time_elapsed = datetime.now() - time_start
+    print("[Tavily 검색]", time_elapsed)
+
     if not all_search_responses:
         return []
 
     selected_results = []
 
+    time_start = datetime.now()
     for sr in all_search_responses:
         search_query = sr.get("query")
         search_results = sr.get("results")
@@ -183,6 +189,11 @@ async def select_search_result(
 
         selection = search_results[parsed.index]
 
+        # 검색 결과의 제목에서 필요없는 문자를 없앤다.
+        selection["title"] = (
+            selection["title"].replace("\n", "").replace("\r", "").replace("\t", "")
+        )
+
         print(
             "[INFO] 검색 결과 선택 완료: search_query=%s, index=%s, score=%s, "
             "title=%s, url=%s",
@@ -199,6 +210,8 @@ async def select_search_result(
                 "url": selection["url"],
             }
         )
+    time_elapsed = datetime.now() - time_start
+    print("[검색 결과 선정]", time_elapsed)
 
     return selected_results
 

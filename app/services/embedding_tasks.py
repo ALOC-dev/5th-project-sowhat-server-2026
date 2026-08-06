@@ -14,6 +14,7 @@ from app.services.llm_service import (
     generate_article_embedding,
     generate_user_profile_embedding,
 )
+from sklearn.metrics.pairwise import cosine_distances
 
 
 # 기사 임베딩 반환, 없으면 생성해 저장
@@ -77,6 +78,57 @@ async def ensure_article_embedding(article_id: int) -> None:
         db.close()
 
 
+# 기사 저장 전 임베딩 생성 + 유사한 기사 필터링한 뒤 한번에 저장
+async def create_article_embeddings(results: list[dict]):
+    db = SessionLocal()
+    THRESHOLD = 0.25
+
+    to_create = []  # 필터링된 기사를 저장할 배열
+
+    try:
+        for result in results:
+            # 각 기사에 대해 임베딩 생성 요청
+            embedding, _ = await generate_article_embedding(result)
+
+            # DB 내에 유사한 기사 존재하면 저장 안 하고 넘어감
+            if embedding is not None and article_crud.exists_similar_article(
+                db,
+                datetime.now() - timedelta(hours=24),
+                0,
+                embedding,
+                THRESHOLD,
+            ):
+                print(f"[DELETE] DB 내 지나치게 유사한 기사 존재: {result["title"]}")
+                continue
+
+            # 같은 배치 내에 유사한 기사가 존재하면 저장 안 하고 넘어감
+            exists_similar_in_batch = False
+            for tc in to_create:
+                cd = cosine_distances(
+                    np.array(embedding).reshape(1, -1),
+                    np.array(tc["embedding"]).reshape(1, -1),
+                )
+                print(cd)  # test
+                if cd <= THRESHOLD:
+                    exists_similar_in_batch = True
+                    print(
+                        f"[DELETE] 배치 내 지나치게 유사한 기사 존재: {result["title"]}, 유사도 {cd}"
+                    )
+                    break
+
+            if exists_similar_in_batch:
+                continue
+
+            result["embedding"] = embedding
+            to_create.append(result)
+
+        # 유사도 필터링에 통과한 기사들만 DB에 저장
+        article_crud.create_articles(db, to_create)
+
+    finally:
+        db.close()
+
+
 # 사용자가 클릭한 기사를 행동 임베딩에 반영 (기존 0.9 : 기사 0.1 가중합 후 정규화)
 async def update_behavior_embedding(user_id: int, article_id: int) -> None:
     db = SessionLocal()
@@ -86,7 +138,7 @@ async def update_behavior_embedding(user_id: int, article_id: int) -> None:
         if user is None or article is None:
             return
 
-        _, behavior_embedding = await get_or_create_user_embedding(user)
+        _, behavior_embedding = await get_or_create_user_embedding(db, user)
 
         article_embedding = await _get_or_create_article_embedding(db, article)
 
