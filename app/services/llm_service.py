@@ -1,8 +1,6 @@
 from datetime import datetime
-import json
 import numpy as np
 
-# from app.services.llm.groq_client import create_json_completion
 from app.models.article import Article
 from app.models.user import User
 from app.schemas.common_analysis import CommonAnalysis
@@ -19,8 +17,8 @@ from app.services.llm.prompts import (
     FILTER_EXTRA_INFORMATION_PROMPT,
     LINK_SEARCH_PROMPT,
 )
-from app.services.llm.trusted_links import TRUSTED_LINK_NAMES
-from app.services.llm.tavily_client import (
+from app.services.search.trusted_links import TRUSTED_LINK_NAMES
+from app.services.search.tavily_client import (
     search_link_targets,
 )
 

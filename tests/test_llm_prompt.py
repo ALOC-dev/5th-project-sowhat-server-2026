@@ -13,7 +13,7 @@ from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
     PERSONAL_ANALYSIS_PROMPT,
 )
-from app.services.llm.reference_links import REFERENCE_LINK_NAMES
+from app.services.search.reference_links import REFERENCE_LINK_NAMES
 from app.services.llm_service import (
     generate_common_analysis,
     generate_personal_analysis,

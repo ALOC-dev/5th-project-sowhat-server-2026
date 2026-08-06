@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 from tavily import AsyncTavilyClient
 
 from app.core.config import settings
-from app.services.llm.trusted_links import (
+from app.services.search.trusted_links import (
     TRUSTED_DOMAINS,
     TRUSTED_HOSTS,
 )

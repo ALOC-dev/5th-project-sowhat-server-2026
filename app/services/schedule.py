@@ -17,7 +17,7 @@ import app.crud.article as article_crud
 from app.exceptions.infrastructure import DatabaseError, ExternalAPIError
 from app.db.database import SessionLocal
 from app.models.enums import CategoryEnum
-from app.services.embedding_tasks import (
+from app.services.llm.embedding_tasks import (
     create_article_embeddings,
 )
 from app.services.llm_service import (

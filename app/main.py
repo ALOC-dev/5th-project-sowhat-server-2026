@@ -1,11 +1,8 @@
-import asyncio
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
 from app.routers import articles, users, auth
 from app.services.schedule import (
-    run_yonhap_crawling_periodically,
     start_crawling_thread,
 )
 from app.core.exceptions import register_exception_handlers

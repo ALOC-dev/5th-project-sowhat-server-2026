@@ -3,10 +3,9 @@ import numpy as np
 from sqlalchemy.orm import Session
 
 import app.crud.article as article_crud
-import app.crud.user as user_crud
 from app.models.article import Article
 from app.models.user import User
-from app.services.embedding_tasks import (
+from app.services.llm.embedding_tasks import (
     ensure_article_embedding,
     get_or_create_user_embedding,
 )

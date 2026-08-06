@@ -5,13 +5,11 @@ from sqlalchemy import StaticPool, create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.database import Base, SessionLocal
-from app.services.embedding_tasks import ensure_article_embedding
-from app.services.llm_service import generate_common_analysis
+from app.services.llm.embedding_tasks import ensure_article_embedding
 from app.services.schedule import process_yonhap_rss, YONHAP_RSS
 from app.crud.article import (
     get_article_by_id,
     get_highest_similarity,
-    get_article_by_source_url,
 )
 
 categories = [

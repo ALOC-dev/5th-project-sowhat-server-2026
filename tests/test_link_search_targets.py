@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock
 import pytest
 
 import app.services.article as article_service
-import app.services.llm.tavily_client as tavily_client
+import app.services.search.tavily_client as tavily_client
 from app.schemas.personal_analysis import LinkSearchTarget
-from app.services.llm.trusted_links import TRUSTED_DOMAINS
+from app.services.search.trusted_links import TRUSTED_DOMAINS
 
 
 def target(source_name: str, search_purpose: str) -> dict:

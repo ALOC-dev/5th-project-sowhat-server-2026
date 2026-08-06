@@ -1,5 +1,4 @@
 from datetime import datetime
-import json
 
 from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
@@ -10,7 +9,7 @@ import app.crud.user as user_crud
 
 from app.models.article import Article
 from app.exceptions.domain import ArticleNotFoundError, UserNotFoundError
-from app.services.embedding_tasks import (
+from app.services.llm.embedding_tasks import (
     ensure_article_embedding,
     update_behavior_embedding,
 )
@@ -19,7 +18,7 @@ from app.services.llm_service import (
     generate_personal_analysis,
     select_search_result,
 )
-from app.services.recommend import recommend_by_cosine_similarity
+from app.services.llm.recommend import recommend_by_cosine_similarity
 
 
 def get_all_articles(db: Session) -> list[Article]:

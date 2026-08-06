@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import app.services.llm.tavily_client as tavily_client
-from app.services.llm.reference_links import resolve_reference_links
-from app.services.llm.trusted_links import is_trusted_url
-from app.services.llm.tavily_client import search_link_targets
+import app.services.search.tavily_client as tavily_client
+from app.services.search.reference_links import resolve_reference_links
+from app.services.search.trusted_links import is_trusted_url
+from app.services.search.tavily_client import search_link_targets
 
 # ── 목록 매핑 ────────────────────────────────────────────────
 
