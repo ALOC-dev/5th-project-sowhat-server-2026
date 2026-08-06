@@ -15,17 +15,6 @@ import app.services.user as service
 router = APIRouter(prefix="/api/users", tags=["users"])
 
 
-# ── POST /api/users ────────────────────────────────────────
-# 성공 시 응답: 201 CREATED
-@router.post("", response_model=UserCreateResponse, status_code=201)
-async def create_user(
-    payload: UserCreateRequest,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-):
-    return await service.create_user(db, payload, background_tasks)
-
-
 # ── GET /api/users/me ───────────────────────────────────────
 @router.get("/me", response_model=UserGetResponse)
 def get_my_profile(
