@@ -25,10 +25,8 @@ from app.services.llm.reference_links import (
     resolve_reference_links,
 )
 from app.services.llm.tavily_client import (
-    search_link_names,
+    search_link_targets,
 )
-
-from app.services.llm.tavily_client import search_link_name
 
 from app.schemas.common_analysis import CommonAnalysis
 from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch
@@ -122,7 +120,9 @@ async def generate_personal_analysis(
             "effect": str,
             "solution": str,
             "links": [{"title": str, "url": str}],
-            "search_link_names": [str],
+            "link_targets": [
+                {"source_name": str, "search_purpose": str},
+            ],
         }
     """
     return parsed
@@ -130,11 +130,11 @@ async def generate_personal_analysis(
 
 async def select_search_result(
     solution: str,
-    link_names: list[str],
+    link_targets: list[dict],
 ) -> list[dict]:
 
     time_start = datetime.now()
-    all_search_responses = await search_link_names(link_names)
+    all_search_responses = await search_link_targets(link_targets)
     time_elapsed = datetime.now() - time_start
     print("[Tavily 검색]", time_elapsed)
 

@@ -5,7 +5,10 @@ import pytest
 
 import app.services.llm_service as llm_service
 from app.schemas.common_analysis import CommonAnalysis, KeywordItem
-from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch
+from app.schemas.personal_analysis import (
+    LinkSearchTarget,
+    PersonalAnalysisBeforeSearch,
+)
 from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
     PERSONAL_ANALYSIS_PROMPT,
@@ -87,6 +90,9 @@ def test_personal_analysis_prompt_contains_user_profile():
     assert "추가 정보: 주식 투자를 처음 시작한 대학생이다." in prompt
     assert "effect 작성 규칙" in prompt
     assert "solution 작성 규칙" in prompt
+    assert "link_targets 작성 규칙" in prompt
+    assert "source_name" in prompt
+    assert "search_purpose" in prompt
     # 링크 허용 목록이 프롬프트에 포함되어야 LLM이 목록 밖 이름을 만들지 않는다
     assert "금융감독원 전자공시시스템" in prompt
 
@@ -164,7 +170,16 @@ async def test_generate_personal_analysis_returns_result(monkeypatch):
     fake_parsed = PersonalAnalysisBeforeSearch(
         effect="이 뉴스는 경제에 관심 있는 학생에게 투자 시장의 변동성을 이해하는 데 도움이 될 수 있다.",
         solution="관련 기업의 공시를 금융감독원 전자공시시스템에서 확인해 보세요.",
-        link_names=["금융감독원 전자공시시스템", "국가통계포털"],
+        link_targets=[
+            LinkSearchTarget(
+                source_name="금융감독원 전자공시시스템",
+                search_purpose="기업 공시",
+            ),
+            LinkSearchTarget(
+                source_name="국가통계포털",
+                search_purpose="경제 지표",
+            ),
+        ],
     )
 
     fake_response = SimpleNamespace(
@@ -207,10 +222,12 @@ async def test_generate_personal_analysis_returns_result(monkeypatch):
 
     assert result["effect"] == fake_parsed.effect
     assert result["solution"] == fake_parsed.solution
-    # 등록된 창구 이름은 서버가 실제 주소로 변환한다
-    assert result["links"] == [
-        {"title": "금융감독원 전자공시시스템", "url": "https://dart.fss.or.kr"},
-        {"title": "국가통계포털", "url": "https://kosis.kr"},
+    assert result["link_targets"] == [
+        {
+            "source_name": "금융감독원 전자공시시스템",
+            "search_purpose": "기업 공시",
+        },
+        {"source_name": "국가통계포털", "search_purpose": "경제 지표"},
     ]
 
 
@@ -221,7 +238,12 @@ async def test_generate_personal_analysis_drops_unknown_link(monkeypatch):
     fake_parsed = PersonalAnalysisBeforeSearch(
         effect="효과",
         solution="해결책",
-        link_names=["존재하지 않는 기관 누리집"],
+        link_targets=[
+            LinkSearchTarget(
+                source_name="존재하지 않는 기관",
+                search_purpose="공식 누리집",
+            )
+        ],
     )
 
     fake_response = SimpleNamespace(
@@ -239,7 +261,8 @@ async def test_generate_personal_analysis_drops_unknown_link(monkeypatch):
         fake_article_namespace(), fake_user_namespace()
     )
 
-    # 검색이 주소를 찾지 못하면 링크는 비지만 해설 자체는 정상 반환된다
-    assert result["links"] == []
+    assert result["link_targets"] == [
+        {"source_name": "존재하지 않는 기관", "search_purpose": "공식 누리집"}
+    ]
     assert result["effect"] == "효과"
     assert result["solution"] == "해결책"

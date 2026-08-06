@@ -7,10 +7,7 @@ import pytest
 import app.services.llm.tavily_client as tavily_client
 from app.services.llm.reference_links import resolve_reference_links
 from app.services.llm.trusted_domains import is_trusted_url
-from app.services.llm.tavily_client import (
-    search_official_url,
-    search_link_names,
-)
+from app.services.llm.tavily_client import search_link_targets
 
 # ── 목록 매핑 ────────────────────────────────────────────────
 
@@ -94,86 +91,29 @@ def fake_client():
         yield client
 
 
-async def test_검색_결과_중_신뢰_도메인만_채택한다(fake_client):
-    fake_client.search.return_value = {
-        "results": [
-            {"url": "https://blog.naver.com/aaa"},
-            {"url": "https://www.changwon.go.kr"},
-        ]
-    }
-
-    assert await search_official_url("창원시") == "https://www.changwon.go.kr"
 
 
-# 검색은 기관의 게시판 페이지를 먼저 물어오는 경우가 많아 메인을 우선한다
-async def test_신뢰_도메인_중_가장_얕은_링크를_고른다(fake_client):
-    fake_client.search.return_value = {
-        "results": [
-            {"url": "https://www.mois.go.kr/frt/bbs/type010/list.do?bbsId=BBS001"},
-            {"url": "https://www.mois.go.kr/frt/a01/intro.do"},
-            {"url": "https://www.mois.go.kr"},
-        ]
-    }
-
-    assert await search_official_url("행정안전부") == "https://www.mois.go.kr"
-
-
-# 깊이만 보고 고르면 '창원시' 검색에 더 얕은 '수원시' 메인이 잡혀 기관이 뒤바뀐다
-async def test_다른_기관의_더_얕은_링크에_속지_않는다(fake_client):
-    fake_client.search.return_value = {
-        "results": [
-            {"url": "https://www.changwon.go.kr/depart/main.do"},
-            {"url": "https://www.suwon.go.kr"},
-        ]
-    }
-
-    assert (
-        await search_official_url("창원시")
-        == "https://www.changwon.go.kr/depart/main.do"
-    )
-
-
-async def test_같은_깊이면_쿼리스트링_없는_쪽을_고른다(fake_client):
-    fake_client.search.return_value = {
-        "results": [
-            {"url": "https://www.kdca.go.kr/board?menuId=10"},
-            {"url": "https://www.kdca.go.kr/board"},
-        ]
-    }
-
-    assert await search_official_url("질병관리청") == "https://www.kdca.go.kr/board"
-
-
-async def test_신뢰_도메인이_없으면_None(fake_client):
-    fake_client.search.return_value = {
-        "results": [{"url": "https://blog.naver.com/aaa"}]
-    }
-
-    assert await search_official_url("창원시") is None
-
-
-# 링크는 해설의 부가 정보라 검색이 실패해도 해설 자체는 나가야 한다
-async def test_검색이_실패해도_예외를_던지지_않는다(fake_client):
-    fake_client.search.side_effect = RuntimeError("타임아웃")
-
-    assert await search_official_url("창원시") is None
-
-
-async def test_찾은_이름만_링크로_묶인다(fake_client):
-    async def fake_search(query, max_results):
-        if "창원시" in query:
-            return {"results": [{"url": "https://www.changwon.go.kr"}]}
-        return {"results": [{"url": "https://blog.naver.com/aaa"}]}
+async def test_여러_검색_대상을_각각_검색한다(fake_client):
+    async def fake_search(query, include_domains, max_results):
+        return {"results": [{"url": f"https://example.go.kr/{query}"}]}
 
     fake_client.search.side_effect = fake_search
 
-    links = await search_link_names(["창원시", "없는기관"])
+    results = await search_link_targets(
+        [
+            {"source_name": "창원시", "search_purpose": "공식 누리집"},
+            {"source_name": "없는기관", "search_purpose": "공식 누리집"},
+        ]
+    )
 
-    assert links == [{"title": "창원시", "url": "https://www.changwon.go.kr"}]
-
+    assert [result["query"] for result in results] == [
+        "창원시 공식 누리집",
+        "없는기관 공식 누리집",
+    ]
 
 # API 키가 없는 환경에서도 서버가 죽지 않아야 한다
 async def test_API_키가_없으면_검색을_건너뛴다():
     with patch.object(tavily_client, "get_client", return_value=None):
-        assert await search_link_names(["창원시"]) == []
-        assert await search_official_url("창원시") is None
+        assert await search_link_targets(
+            [{"source_name": "창원시", "search_purpose": "공식 누리집"}]
+        ) == []

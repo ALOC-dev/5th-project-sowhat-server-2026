@@ -221,20 +221,23 @@ async def test_select_search_result():
             print(parsed)
             print()
 
-            if len(parsed["link_names"]) == 0:
+            if len(parsed["link_targets"]) == 0:
                 print("=" * 60)
                 continue
 
             tavily_client = get_client()
 
-            for link_name in parsed["link_names"]:
+            for link_target in parsed["link_targets"]:
+                search_query = (
+                    f"{link_target['source_name']} {link_target['search_purpose']}"
+                ).strip()
                 include_domains = [
                     *TRUSTED_HOSTS,
                     *(suffix.lstrip(".") for suffix in TRUSTED_SUFFIXES),
                 ]
 
                 search_response = await tavily_client.search(
-                    link_name,
+                    search_query,
                     include_domains=include_domains,
                     max_results=5,
                 )
