@@ -184,7 +184,7 @@ TEST_USER_IDS = [1, 2, 4]
 
 from app.services.llm.prompts import LINK_SEARCH_PROMPT
 from app.services.llm.tavily_client import get_client
-from app.services.llm.trusted_domains import TRUSTED_SUFFIXES, TRUSTED_HOSTS
+from app.services.llm.trusted_links import TRUSTED_SUFFIXES, TRUSTED_HOSTS
 
 
 async def test_select_search_result():

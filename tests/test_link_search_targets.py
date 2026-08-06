@@ -6,7 +6,7 @@ import pytest
 import app.services.article as article_service
 import app.services.llm.tavily_client as tavily_client
 from app.schemas.personal_analysis import LinkSearchTarget
-from app.services.llm.trusted_domains import TRUSTED_DOMAINS
+from app.services.llm.trusted_links import TRUSTED_DOMAINS
 
 
 def target(source_name: str, search_purpose: str) -> dict:
@@ -132,9 +132,7 @@ async def test_article_removes_link_targets_from_final_response(monkeypatch):
 
     assert "link_targets" not in result
     assert "link_targets" not in created
-    assert result["links"] == [
-        {"title": "result", "url": "https://example.go.kr"}
-    ]
+    assert result["links"] == [{"title": "result", "url": "https://example.go.kr"}]
 
 
 @pytest.mark.asyncio

@@ -6,7 +6,7 @@ import pytest
 
 import app.services.llm.tavily_client as tavily_client
 from app.services.llm.reference_links import resolve_reference_links
-from app.services.llm.trusted_domains import is_trusted_url
+from app.services.llm.trusted_links import is_trusted_url
 from app.services.llm.tavily_client import search_link_targets
 
 # ── 목록 매핑 ────────────────────────────────────────────────
@@ -91,8 +91,6 @@ def fake_client():
         yield client
 
 
-
-
 async def test_여러_검색_대상을_각각_검색한다(fake_client):
     async def fake_search(query, include_domains, max_results):
         return {"results": [{"url": f"https://example.go.kr/{query}"}]}
@@ -111,9 +109,13 @@ async def test_여러_검색_대상을_각각_검색한다(fake_client):
         "없는기관 공식 누리집",
     ]
 
+
 # API 키가 없는 환경에서도 서버가 죽지 않아야 한다
 async def test_API_키가_없으면_검색을_건너뛴다():
     with patch.object(tavily_client, "get_client", return_value=None):
-        assert await search_link_targets(
-            [{"source_name": "창원시", "search_purpose": "공식 누리집"}]
-        ) == []
+        assert (
+            await search_link_targets(
+                [{"source_name": "창원시", "search_purpose": "공식 누리집"}]
+            )
+            == []
+        )

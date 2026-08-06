@@ -19,11 +19,7 @@ from app.services.llm.prompts import (
     FILTER_EXTRA_INFORMATION_PROMPT,
     LINK_SEARCH_PROMPT,
 )
-from app.services.llm.reference_links import (
-    REFERENCE_LINKS,
-    REFERENCE_LINK_NAMES,
-    resolve_reference_links,
-)
+from app.services.llm.trusted_links import TRUSTED_LINK_NAMES
 from app.services.llm.tavily_client import (
     search_link_targets,
 )
@@ -94,7 +90,7 @@ async def generate_personal_analysis(
         category=category_value(article.category),
         summary=summary,
         related_articles=format_related_articles(related_articles),
-        reference_links=REFERENCE_LINK_NAMES,
+        reference_links=TRUSTED_LINK_NAMES,
         age=user.age,
         gender=user.gender.value,
         region=user.region.value,
@@ -139,6 +135,7 @@ async def select_search_result(
     print("[Tavily 검색]", time_elapsed)
 
     if not all_search_responses:
+        print("[ERROR] 검색 결과를 찾을 수 없음")
         return []
 
     selected_results = []
@@ -148,7 +145,7 @@ async def select_search_result(
         search_query = sr.get("query")
         search_results = sr.get("results")
 
-        if len(search_results) == 0:
+        if not search_results or len(search_results) == 0:
             continue
 
         prompt = LINK_SEARCH_PROMPT.format(
@@ -167,9 +164,8 @@ async def select_search_result(
             )
         except Exception as exc:
             print(
-                "[ERROR] 검색 결과 선택 LLM 호출 실패: search_query=%s, error=%s",
-                search_query,
-                exc,
+                "[ERROR] 검색 결과 선택 LLM 호출 실패: search_query=%s, error=%s"
+                % (search_query, exc)
             )
             continue
 
@@ -180,10 +176,8 @@ async def select_search_result(
 
         if not 0 <= parsed.index < len(search_results):
             print(
-                "[ERROR] 검색 결과 선택 index 범위 오류: search_query=%s, index=%s, count=%s",
-                search_query,
-                parsed.index,
-                len(search_results),
+                "[ERROR] 검색 결과 선택 index 범위 오류: search_query=%s, index=%s, count=%s"
+                % (search_query, parsed.index, len(search_results))
             )
             continue
 
@@ -195,13 +189,14 @@ async def select_search_result(
         )
 
         print(
-            "[INFO] 검색 결과 선택 완료: search_query=%s, index=%s, score=%s, "
-            "title=%s, url=%s",
-            search_query,
-            parsed.index,
-            parsed.score,
-            selection["title"],
-            selection["url"],
+            "[INFO] 검색 결과 선택 완료: search_query=%s, index=%s, score=%s, title=%s, url=%s"
+            % (
+                search_query,
+                parsed.index,
+                parsed.score,
+                selection["title"],
+                selection["url"],
+            )
         )
 
         selected_results.append(
