@@ -22,14 +22,22 @@ from app.services.llm_service import (
 from app.services.recommend import recommend_by_cosine_similarity
 
 
+PREVIEW_CONTENT_LENGTH = 25
+
+
+# 목록 응답에는 본문 전체가 필요 없어 미리보기 길이로 잘라 내보낸다
+def _truncate_preview_content(articles: list[Article]) -> list[Article]:
+    for article in articles:
+        if len(article.content) > PREVIEW_CONTENT_LENGTH:
+            article.content = article.content[:PREVIEW_CONTENT_LENGTH] + "..."
+
+    return articles
+
+
 def get_all_articles(db: Session) -> list[Article]:
     articles = article_crud.get_all_articles(db)
 
-    for article in articles:
-        if len(article.content) > 25:
-            article.content = article.content[:25] + "..."
-
-    return articles
+    return _truncate_preview_content(articles)
 
 
 async def get_recommended_articles(db: Session, user_id: int) -> list[Article]:
@@ -39,11 +47,17 @@ async def get_recommended_articles(db: Session, user_id: int) -> list[Article]:
 
     top_20_articles = await recommend_by_cosine_similarity(db, user)
 
-    for article in top_20_articles:
-        if len(article.content) > 25:
-            article.content = article.content[:25] + "..."
+    return _truncate_preview_content(top_20_articles)
 
-    return top_20_articles
+
+# 사용자가 조회한 기사 목록 (최근 조회 순)
+# 조회 기록은 개인해설이 생성될 때 personal_analysis에 남는다
+def get_viewed_articles(
+    db: Session, user_id: int, limit: int, offset: int
+) -> list[Article]:
+    articles = personal_crud.get_viewed_articles(db, user_id, limit, offset)
+
+    return _truncate_preview_content(articles)
 
 
 async def get_common_analysis(

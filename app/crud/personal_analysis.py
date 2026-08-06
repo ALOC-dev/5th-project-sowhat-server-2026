@@ -1,5 +1,7 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.article import Article
 from app.models.personal_analysis import PersonalAnalysis
 
 
@@ -27,3 +29,19 @@ def get_analysis_by_article_and_user(
         )
         .first()
     )
+
+
+# 사용자가 조회한 기사 목록을 최근 조회 순으로 반환
+# personal_analysis에는 조회 시각 컬럼이 없어 id 역순을 최근 순으로 대신 쓴다
+def get_viewed_articles(
+    db: Session, user_id: int, limit: int, offset: int
+) -> list[Article]:
+    stmt = (
+        select(Article)
+        .join(PersonalAnalysis, PersonalAnalysis.article_id == Article.id)
+        .where(PersonalAnalysis.user_id == user_id)
+        .order_by(PersonalAnalysis.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    return db.execute(stmt).scalars().all()
