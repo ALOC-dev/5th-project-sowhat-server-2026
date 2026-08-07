@@ -1,4 +1,6 @@
 """
+### 참고: 이 파일의 변수 및 함수는 테스트용으로만 사용되며, 실제 검색 용도로 사용되지 않음 ###
+
 개인해설의 조회/신청 링크로 사용할 공식 창구 목록.
 
 LLM이 주소를 직접 생성하면 존재하지 않는 링크를 만들 위험이 있으므로,
@@ -13,17 +15,18 @@ REFERENCE_LINKS: dict[str, str] = {
     "금융감독원 전자공시시스템": "https://dart.fss.or.kr",
     "한국거래소": "https://www.krx.co.kr",
     "미국 증권거래위원회 전자공시시스템": "https://www.sec.gov/edgar",
+    "K-Sight 무역보험 빅데이터 플랫폼": "https://ksight.ksure.or.kr",
+    "한국석유공사 페트로넷": "https://www.petronet.co.kr",
     "한국석유공사 오피넷": "https://www.opinet.co.kr",
     "한국은행 경제통계시스템": "https://ecos.bok.or.kr",
     "국가통계포털": "https://kosis.kr",
-    "고용노동부 워크넷": "https://www.work24.go.kr",
+    "국가데이터처": "https://mods.go.kr",
+    "고용24": "https://www.work24.go.kr",
     "정부24": "https://www.gov.kr",
     "국세청 홈택스": "https://hometax.go.kr",
     "국민건강보험공단": "https://www.nhis.or.kr",
     "국민연금공단": "https://www.nps.or.kr",
     "법제처 국가법령정보센터": "https://www.law.go.kr",
-    # 프롬프트가 "정부 부처·공공기관"을 고르도록 안내하는데 목록이 12곳뿐이라
-    # 자주 나오는 창구가 매칭되지 않고 검색으로 넘어가던 문제를 줄이기 위해 추가한다.
     "행정안전부": "https://www.mois.go.kr",
     "기획재정부": "https://www.moef.go.kr",
     "고용노동부": "https://www.moel.go.kr",

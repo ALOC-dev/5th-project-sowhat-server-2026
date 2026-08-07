@@ -6,7 +6,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.db.database import get_db, Base
-import app.services.llm.tavily_client as tavily_client
+import app.services.search.tavily_client as tavily_client
 
 
 # ── 0-1. 참고 링크 웹 검색 차단 ───────────────────────────────
@@ -16,6 +16,7 @@ import app.services.llm.tavily_client as tavily_client
 @pytest.fixture(autouse=True)
 def block_tavily_search(monkeypatch):
     monkeypatch.setattr(tavily_client, "get_client", lambda: None)
+
 
 # ── 0. 외부 API 호출 테스트 실행 옵션 ─────────────────────────
 # 연합뉴스 크롤링과 OpenAI 호출이 실제로 일어나는 테스트는 기본 실행에서 제외한다.

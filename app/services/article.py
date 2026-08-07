@@ -1,5 +1,4 @@
 from datetime import datetime
-import json
 
 from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
@@ -10,7 +9,7 @@ import app.crud.user as user_crud
 
 from app.models.article import Article
 from app.exceptions.domain import ArticleNotFoundError, UserNotFoundError
-from app.services.embedding_tasks import (
+from app.services.llm.embedding_tasks import (
     ensure_article_embedding,
     update_behavior_embedding,
 )
@@ -19,7 +18,7 @@ from app.services.llm_service import (
     generate_personal_analysis,
     select_search_result,
 )
-from app.services.recommend import recommend_by_cosine_similarity
+from app.services.llm.recommend import recommend_by_cosine_similarity
 
 
 def get_all_articles(db: Session) -> list[Article]:
@@ -114,10 +113,10 @@ async def get_personal_analysis(
     # 아님 프론트에서 선 해설 요청 -> 후 링크 요청으로 따로 만들어..?
 
     # 화이트리스트에 없는 창구 이름은 Tavily 검색 후 2차 LLM이 선택한 실제 검색 결과를 links에 추가
-    # search_link_names = personal_analysis.pop("link_names", [])
+    # search_link_targets = personal_analysis.pop("link_targets", [])
 
     selected_links = await select_search_result(
-        personal_analysis["solution"], personal_analysis.pop("link_names", [])
+        personal_analysis["solution"], personal_analysis.pop("link_targets", [])
     )
 
     personal_analysis["links"] = selected_links

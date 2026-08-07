@@ -1,8 +1,6 @@
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import CategoryEnum
-
 
 # 핵심 용어 1개 (용어 + 뜻 설명)
 # OpenAI structured output(strict)은 임의 키 dict를 허용하지 않아
