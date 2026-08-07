@@ -2,7 +2,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.schemas.article import ArticlePreviewResponse
+from app.schemas.personal_analysis import ViewedArticleResponse
 from app.schemas.user import (
     UserCreateRequest,
     UserCreateResponse,
@@ -42,7 +42,7 @@ async def update_my_profile(
 
 # ── GET /api/users/me/articles ──────────────────────────────
 # 로그인한 사용자가 조회한 기사 목록을 최근 조회 순으로 반환
-@router.get("/me/articles", response_model=list[ArticlePreviewResponse])
+@router.get("/me/articles", response_model=list[ViewedArticleResponse])
 def get_my_viewed_articles(
     request: Request,
     limit: int = Query(20, ge=1, le=50),

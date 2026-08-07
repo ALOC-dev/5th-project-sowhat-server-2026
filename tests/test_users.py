@@ -110,7 +110,7 @@ def test_update_my_profile_without_login(client):
 # 기사와 조회 기록(개인해설)을 테스트 DB에 직접 넣는다.
 # 조회 기록은 원래 GET /api/articles/analysis에서 생기지만 LLM 호출이 필요해
 # 여기서는 결과만 직접 심는다.
-def create_viewed_article(user_id: int, title: str, content: str = "본문") -> int:
+def create_viewed_article(user_id: int, title: str) -> int:
     db = TestingSessionLocal()
     try:
         article = Article(
@@ -119,7 +119,7 @@ def create_viewed_article(user_id: int, title: str, content: str = "본문") -> 
             published_at=datetime(2026, 1, 1),
             publisher="연합뉴스",
             reporter="테스트기자",
-            content=content,
+            content="본문",
             category=CategoryEnum.ECONOMY,
         )
         db.add(article)
@@ -158,15 +158,21 @@ def test_get_my_viewed_articles_success(client):
     assert data[1]["title"] == "먼저 본 기사"
 
 
-# 목록 응답의 본문은 미리보기 길이로 잘려서 나간다
-def test_get_my_viewed_articles_truncates_content(client):
+# 목록 UI가 쓰는 세 필드만 나가고 해설 본문은 나가지 않는다
+def test_get_my_viewed_articles_returns_only_list_fields(client):
     user_id = signup_and_login(client)
-    create_viewed_article(user_id, "긴 기사", content="가" * 30)
+    article_id = create_viewed_article(user_id, "본 기사")
 
     response = client.get("/api/users/me/articles")
 
     assert response.status_code == 200
-    assert response.json()[0]["content"] == "가" * 25 + "..."
+    assert response.json() == [
+        {
+            "article_id": article_id,
+            "title": "본 기사",
+            "category": CategoryEnum.ECONOMY.value,
+        }
+    ]
 
 
 def test_get_my_viewed_articles_empty(client):

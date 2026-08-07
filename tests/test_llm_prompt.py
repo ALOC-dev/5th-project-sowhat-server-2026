@@ -207,17 +207,15 @@ async def test_generate_personal_analysis_returns_result(monkeypatch):
 
     assert result["effect"] == fake_parsed.effect
     assert result["solution"] == fake_parsed.solution
-    # 등록된 창구 이름은 서버가 실제 주소로 변환한다
-    assert result["links"] == [
-        {"title": "금융감독원 전자공시시스템", "url": "https://dart.fss.or.kr"},
-        {"title": "국가통계포털", "url": "https://kosis.kr"},
-    ]
+    # 1차 해설은 창구 '이름'까지만 만든다. 주소는 검색·선택 단계에서 붙는다
+    assert result["link_names"] == ["금융감독원 전자공시시스템", "국가통계포털"]
+    assert "links" not in result
 
 
-# 목록에 없는 창구 이름은 웹 검색으로 넘어간다.
-# 검색이 주소를 찾지 못하면(또는 검색이 꺼져 있으면) 링크 없이 해설만 반환한다.
+# 이 단계는 이름을 그대로 넘길 뿐이라 목록에 있는 이름인지 따지지 않는다.
+# 주소를 찾는 일은 select_search_result가 맡는다.
 @pytest.mark.asyncio
-async def test_generate_personal_analysis_drops_unknown_link(monkeypatch):
+async def test_generate_personal_analysis_passes_unknown_link_name_through(monkeypatch):
     fake_parsed = PersonalAnalysisBeforeSearch(
         effect="효과",
         solution="해결책",
@@ -239,7 +237,6 @@ async def test_generate_personal_analysis_drops_unknown_link(monkeypatch):
         fake_article_namespace(), fake_user_namespace()
     )
 
-    # 검색이 주소를 찾지 못하면 링크는 비지만 해설 자체는 정상 반환된다
-    assert result["links"] == []
+    assert result["link_names"] == ["존재하지 않는 기관 누리집"]
     assert result["effect"] == "효과"
     assert result["solution"] == "해결책"

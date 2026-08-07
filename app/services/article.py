@@ -9,6 +9,7 @@ import app.crud.personal_analysis as personal_crud
 import app.crud.user as user_crud
 
 from app.models.article import Article
+from app.models.personal_analysis import PersonalAnalysis
 from app.exceptions.domain import ArticleNotFoundError, UserNotFoundError
 from app.services.embedding_tasks import (
     ensure_article_embedding,
@@ -51,13 +52,12 @@ async def get_recommended_articles(db: Session, user_id: int) -> list[Article]:
 
 
 # 사용자가 조회한 기사 목록 (최근 조회 순)
-# 조회 기록은 개인해설이 생성될 때 personal_analysis에 남는다
+# 조회 기록은 개인해설이 생성될 때 personal_analysis에 남고,
+# 목록에 필요한 기사 정보(title, category)도 그때 함께 저장된다
 def get_viewed_articles(
     db: Session, user_id: int, limit: int, offset: int
-) -> list[Article]:
-    articles = personal_crud.get_viewed_articles(db, user_id, limit, offset)
-
-    return _truncate_preview_content(articles)
+) -> list[PersonalAnalysis]:
+    return personal_crud.get_viewed_analyses(db, user_id, limit, offset)
 
 
 async def get_common_analysis(

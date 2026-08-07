@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
+from app.models.enums import CategoryEnum
+
 
 # 검색 결과 중 선택한 인덱스 및 관련도 점수 반환
 class LinkSelectionResult(BaseModel):
@@ -24,6 +26,16 @@ class PersonalAnalysis(BaseModel):
     effect: str
     solution: str
     links: list[Link] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# 조회한 기사 목록 응답용
+# 목록 UI가 쓰는 건 이 세 가지뿐이라 해설 본문(effect, solution, links)은 내보내지 않는다
+class ViewedArticleResponse(BaseModel):
+    article_id: int
+    title: str
+    category: CategoryEnum
 
     model_config = ConfigDict(from_attributes=True)
 
