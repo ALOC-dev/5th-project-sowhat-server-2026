@@ -1,8 +1,6 @@
 from datetime import datetime
-import json
 import numpy as np
 
-# from app.services.llm.groq_client import create_json_completion
 from app.models.article import Article
 from app.models.user import User
 from app.schemas.common_analysis import CommonAnalysis
@@ -19,16 +17,10 @@ from app.services.llm.prompts import (
     FILTER_EXTRA_INFORMATION_PROMPT,
     LINK_SEARCH_PROMPT,
 )
-from app.services.llm.reference_links import (
-    REFERENCE_LINKS,
-    REFERENCE_LINK_NAMES,
-    resolve_reference_links,
+from app.services.search.trusted_links import TRUSTED_LINK_NAMES
+from app.services.search.tavily_client import (
+    search_link_targets,
 )
-from app.services.llm.tavily_client import (
-    search_link_names,
-)
-
-from app.services.llm.tavily_client import search_link_name
 
 from app.schemas.common_analysis import CommonAnalysis
 from app.schemas.personal_analysis import PersonalAnalysisBeforeSearch
@@ -96,7 +88,8 @@ async def generate_personal_analysis(
         category=category_value(article.category),
         summary=summary,
         related_articles=format_related_articles(related_articles),
-        reference_links=REFERENCE_LINK_NAMES,
+        reference_links=TRUSTED_LINK_NAMES,
+        username=user.username,
         age=user.age,
         gender=user.gender.value,
         region=user.region.value,
@@ -122,7 +115,9 @@ async def generate_personal_analysis(
             "effect": str,
             "solution": str,
             "links": [{"title": str, "url": str}],
-            "search_link_names": [str],
+            "link_targets": [
+                {"source_name": str, "search_purpose": str},
+            ],
         }
     """
     return parsed
@@ -130,15 +125,19 @@ async def generate_personal_analysis(
 
 async def select_search_result(
     solution: str,
-    link_names: list[str],
+    link_targets: list[dict],
 ) -> list[dict]:
 
+    if link_targets == []:
+        return []
+
     time_start = datetime.now()
-    all_search_responses = await search_link_names(link_names)
+    all_search_responses = await search_link_targets(link_targets)
     time_elapsed = datetime.now() - time_start
     print("[Tavily 검색]", time_elapsed)
 
     if not all_search_responses:
+        print("[ERROR] 검색 결과를 찾을 수 없음")
         return []
 
     selected_results = []
@@ -148,7 +147,7 @@ async def select_search_result(
         search_query = sr.get("query")
         search_results = sr.get("results")
 
-        if len(search_results) == 0:
+        if not search_results or len(search_results) == 0:
             continue
 
         prompt = LINK_SEARCH_PROMPT.format(
@@ -167,9 +166,8 @@ async def select_search_result(
             )
         except Exception as exc:
             print(
-                "[ERROR] 검색 결과 선택 LLM 호출 실패: search_query=%s, error=%s",
-                search_query,
-                exc,
+                "[ERROR] 검색 결과 선택 LLM 호출 실패: search_query=%s, error=%s"
+                % (search_query, exc)
             )
             continue
 
@@ -180,10 +178,8 @@ async def select_search_result(
 
         if not 0 <= parsed.index < len(search_results):
             print(
-                "[ERROR] 검색 결과 선택 index 범위 오류: search_query=%s, index=%s, count=%s",
-                search_query,
-                parsed.index,
-                len(search_results),
+                "[ERROR] 검색 결과 선택 index 범위 오류: search_query=%s, index=%s, count=%s"
+                % (search_query, parsed.index, len(search_results))
             )
             continue
 
@@ -195,14 +191,22 @@ async def select_search_result(
         )
 
         print(
-            "[INFO] 검색 결과 선택 완료: search_query=%s, index=%s, score=%s, "
-            "title=%s, url=%s",
-            search_query,
-            parsed.index,
-            parsed.score,
-            selection["title"],
-            selection["url"],
+            "[INFO] 검색 결과 선택 완료: search_query=%s, index=%s, score=%s, title=%s, url=%s"
+            % (
+                search_query,
+                parsed.index,
+                parsed.score,
+                selection["title"],
+                selection["url"],
+            )
         )
+
+        # 이미 있는 링크와 같으면 버린다.
+        selected_urls = [sr["url"][: sr["url"].index("?")] for sr in selected_results]
+
+        if selection["url"] in selected_urls:
+            print("[SKIP] 중복 링크")
+            continue
 
         selected_results.append(
             {

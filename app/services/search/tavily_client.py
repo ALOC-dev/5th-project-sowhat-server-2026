@@ -12,7 +12,10 @@ from urllib.parse import urlparse
 from tavily import AsyncTavilyClient
 
 from app.core.config import settings
-from app.services.llm.trusted_domains import TRUSTED_DOMAINS, is_trusted_url
+from app.services.search.trusted_links import (
+    TRUSTED_DOMAINS,
+    TRUSTED_HOSTS,
+)
 
 # 검색 1건당 대기 한도(초). 개인해설 응답 지연을 막기 위해 짧게 잡는다.
 SEARCH_TIMEOUT = 5.0
@@ -81,12 +84,27 @@ def get_client() -> AsyncTavilyClient | None:
 #     return min(same_host, key=url_depth)
 
 
-async def search_link_name(link_name: str) -> dict:
+async def search_link_target(link_target: dict) -> dict:
+    ## LLM이 고른 창구 이름에 해당되는 주소로 검색 범위를 한정해서 검색 정확도를 높인다.
+    ## 목록에 없는 이름은 넓은 범위에서 웹 검색을 진행한다.
+    ## 링크는 해설의 부가 정보이므로 검색이 실패해도 매칭된 링크만 담아 응답한다.
+
     client = get_client()
 
+    source_name = link_target["source_name"]
+
+    if source_name in TRUSTED_HOSTS.keys():
+        # 기관이 우리가 고른 화이트리스트에 포함되면 해당 기관의 호스트명으로만 검색
+        domains = [TRUSTED_HOSTS[source_name]]
+    else:
+        # 화이트리스트에 없는 기관이면 더 넓은 범위 (or.kr, go.kr 등 전체)에서 검색
+        domains = TRUSTED_DOMAINS
+
+    query = f"{source_name} {link_target["search_purpose"]}".strip()
+
     response = await client.search(
-        link_name,
-        include_domains=TRUSTED_DOMAINS,
+        query,
+        include_domains=domains,
         max_results=MAX_SEARCH_RESULTS,
     )
 
@@ -100,22 +118,18 @@ async def search_link_name(link_name: str) -> dict:
         {"index": index, **result} for index, result in enumerate(results)
     ]
 
-    return {"query": link_name, "results": indexed_results}
+    return {"query": query, "results": indexed_results}
 
 
 # 여러 창구 이름을 동시에 검색해 {query, results} 목록으로 돌려준다.
 # 찾지 못한 이름은 결과에서 빠진다.
-async def search_link_names(link_names: list[str]) -> list[dict]:
+async def search_link_targets(link_targets: list[dict]) -> list[dict]:
 
-    ## LLM이 고른 창구 이름을 등록된 주소로 바꾸고,목록에 없는 이름은 웹 검색으로 공식 주소를 찾는다.
-    ## 링크는 해설의 부가 정보이므로 검색이 실패해도 매칭된 링크만 담아 응답한다.
-    # links, unmatched = resolve_reference_links(link_names)
-
-    if not link_names or get_client() is None:
+    if not link_targets or get_client() is None:
         return []
 
     results = await asyncio.gather(
-        *(search_link_name(name) for name in link_names),
+        *(search_link_target(target) for target in link_targets),
         return_exceptions=True,
     )
 

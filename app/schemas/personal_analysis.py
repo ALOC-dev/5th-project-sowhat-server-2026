@@ -42,10 +42,17 @@ class ViewedArticleResponse(BaseModel):
 
 # 1차 LLM 해설 생성용 (검색어로 찾을 링크 이름 포함)
 # 주소(URL)는 LLM이 지어낼 위험이 있어 받지 않고, 창구 이름만 받는다
+# 1차 LLM 해설 생성용 (검색할 기관·서비스와 목적 포함)
+# 주소(URL)는 LLM이 지어낼 위험이 있어 받지 않는다
+class LinkSearchTarget(BaseModel):
+    source_name: str
+    search_purpose: str
+
+
 class PersonalAnalysisBeforeSearch(BaseModel):
     effect: str
     solution: str
-    link_names: list[str] = []
+    link_targets: list[LinkSearchTarget] = []
 
     model_config = ConfigDict(from_attributes=True)
 
