@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 from aioresponses import aioresponses
 
 from app.exceptions.infrastructure import ExternalAPIError
+from app.models.enums import CategoryEnum
 from app.services.schedule import (
     fetch_yonhap_body,
     fetch_rss_entries,
@@ -217,7 +218,17 @@ def make_entry(i: int) -> dict:
     }
 
 
+# 공통 해설 LLM이 돌려주는 형태. success/category까지 있어야 크롤러가 정상 경로를 탄다
+FAKE_ANALYSIS = {
+    "success": True,
+    "category": "경제",
+    "summary": "요약",
+    "keyword": [],
+}
+
+
 # 실제 DB/LLM에 접근하지 않도록 process_yonhap_rss의 외부 의존성을 대체
+# 임베딩 생성은 create_article_embeddings로 옮겨졌다 (4199fd7)
 @pytest.fixture
 def mock_process_deps():
     with (
@@ -225,11 +236,11 @@ def mock_process_deps():
         patch("app.services.schedule.article_crud") as article_crud,
         patch(
             "app.services.schedule.generate_common_analysis",
-            new=AsyncMock(return_value={"summary": "요약", "keyword": []}),
+            new=AsyncMock(return_value=FAKE_ANALYSIS),
         ),
         patch(
-            "app.services.schedule.generate_article_embedding",
-            new=AsyncMock(return_value=[0.0] * 1536),
+            "app.services.schedule.create_article_embeddings",
+            new=AsyncMock(return_value=None),
         ),
         patch("app.services.schedule.asyncio.sleep"),
     ):
@@ -253,6 +264,9 @@ class TestProcessYonhapRss:
         assert results[0]["title"] == "기사1"
         assert results[0]["content"] == FAKE_BODY
         assert results[0]["publisher"] == "연합뉴스"
+        # 카테고리를 못 정하는 피드는 LLM이 돌려준 값으로 채운다
+        assert results[0]["category"] == CategoryEnum.ECONOMY
+        assert results[0]["summary"] == "요약"
 
     async def test_RSS_비어있으면_빈_리스트_반환(self, mock_process_deps):
         with patch("app.services.schedule.fetch_rss_entries", return_value=[]):

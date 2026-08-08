@@ -4,10 +4,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import app.services.search.tavily_client as tavily_client
-from app.services.search.reference_links import resolve_reference_links
-from app.services.search.trusted_links import is_trusted_url
-from app.services.search.tavily_client import search_link_targets
+import app.services.llm.tavily_client as tavily_client
+from app.services.llm.reference_links import resolve_reference_links
+from app.services.llm.trusted_domains import TRUSTED_DOMAINS, is_trusted_url
+from app.services.llm.tavily_client import (
+    search_link_name,
+    search_link_names,
+)
 
 # ── 목록 매핑 ────────────────────────────────────────────────
 
@@ -91,31 +94,61 @@ def fake_client():
         yield client
 
 
-async def test_여러_검색_대상을_각각_검색한다(fake_client):
-    async def fake_search(query, include_domains, max_results):
-        return {"results": [{"url": f"https://example.go.kr/{query}"}]}
+# 예전에는 검색 결과를 파이썬이 직접 골랐다(가장 얕은 링크 우선).
+# 지금은 신뢰 도메인으로 검색 범위를 좁힌 뒤 결과에 번호를 붙여 LLM이 고르게 한다.
+
+
+# LLM이 주소를 지어내지 못하도록 후보에 번호를 붙여 넘긴다
+async def test_검색_결과에_0부터_번호가_붙는다(fake_client):
+    fake_client.search.return_value = {
+        "results": [
+            {"url": "https://www.changwon.go.kr", "title": "창원시"},
+            {"url": "https://www.changwon.go.kr/depart", "title": "창원시 부서"},
+        ]
+    }
+
+    response = await search_link_name("창원시")
+
+    assert response["query"] == "창원시"
+    assert [result["index"] for result in response["results"]] == [0, 1]
+    # 원래 필드는 그대로 남는다
+    assert response["results"][0]["url"] == "https://www.changwon.go.kr"
+
+
+async def test_검색_결과가_없으면_빈_dict를_반환한다(fake_client):
+    fake_client.search.return_value = {"results": []}
+
+    assert await search_link_name("없는기관") == {}
+
+
+# 검색 결과를 그대로 쓰면 LLM이 주소를 지어내는 것과 위험이 비슷해진다
+async def test_신뢰_도메인으로_검색_범위를_제한한다(fake_client):
+    fake_client.search.return_value = {"results": [{"url": "https://www.mois.go.kr"}]}
+
+    await search_link_name("행정안전부")
+
+    _, kwargs = fake_client.search.call_args
+    assert kwargs["include_domains"] == TRUSTED_DOMAINS
+
+
+async def test_이름마다_한_번씩_검색해_모아준다(fake_client):
+    async def fake_search(query, **kwargs):
+        return {"results": [{"url": f"https://www.{query}.go.kr"}]}
 
     fake_client.search.side_effect = fake_search
 
-    results = await search_link_targets(
-        [
-            {"source_name": "창원시", "search_purpose": "공식 누리집"},
-            {"source_name": "없는기관", "search_purpose": "공식 누리집"},
-        ]
-    )
+    responses = await search_link_names(["창원시", "수원시"])
 
-    assert [result["query"] for result in results] == [
-        "창원시 공식 누리집",
-        "없는기관 공식 누리집",
-    ]
+    assert [response["query"] for response in responses] == ["창원시", "수원시"]
+    assert fake_client.search.await_count == 2
 
 
 # API 키가 없는 환경에서도 서버가 죽지 않아야 한다
 async def test_API_키가_없으면_검색을_건너뛴다():
     with patch.object(tavily_client, "get_client", return_value=None):
-        assert (
-            await search_link_targets(
-                [{"source_name": "창원시", "search_purpose": "공식 누리집"}]
-            )
-            == []
-        )
+        assert await search_link_names(["창원시"]) == []
+
+
+async def test_검색할_이름이_없으면_검색하지_않는다(fake_client):
+    assert await search_link_names([]) == []
+    assert fake_client.search.await_count == 0
