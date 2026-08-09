@@ -52,7 +52,7 @@ TRUSTED_HOSTS: dict[str, str] = {
     "보건복지부": "www.mohw.go.kr",
     "교육부": "www.moe.go.kr",
     "국토교통부": "www.molit.go.kr",
-    "산업통상자원부": "www.motie.go.kr",
+    "산업통상자원부": "www.motir.go.kr",
     "과학기술정보통신부": "www.msit.go.kr",
     "환경부": "www.me.go.kr",
     "중소벤처기업부": "www.mss.go.kr",
