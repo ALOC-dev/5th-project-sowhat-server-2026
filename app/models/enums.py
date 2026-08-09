@@ -68,3 +68,8 @@ class PurposeEnum(str, Enum):
     STUDY = "공부"
     EMPLOYMENT_STARTUP = "취·창업"
     INVESTMENT = "투자"
+
+
+class UserResponseEnum(str, Enum):
+    GOOD = "도움이 됐어요"
+    BAD = "별로예요"

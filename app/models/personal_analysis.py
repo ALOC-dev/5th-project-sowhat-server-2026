@@ -1,6 +1,6 @@
 from sqlalchemy import JSON, Column, Enum, ForeignKey, Integer, Text, UniqueConstraint
 from app.db.database import Base
-from app.models.enums import CategoryEnum
+from app.models.enums import CategoryEnum, UserResponseEnum
 
 
 class PersonalAnalysis(Base):
@@ -31,3 +31,5 @@ class PersonalAnalysis(Base):
     )  # solution에서 안내한 공식 창구의 제목과 주소 목록 (없으면 빈 목록)
     title = Column(Text, nullable=False)
     category = Column(Enum(CategoryEnum, name="category_enum"), nullable=False)
+    similar_articles = Column(JSON, nullable=True)
+    user_response = Column(UserResponseEnum, nullable=True)

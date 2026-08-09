@@ -21,11 +21,21 @@ class Link(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# 유사 기사 응답용
+class SimilarArticle(BaseModel):
+    title: str
+    publisher: str
+    source_url: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # DB 및 최종 웹 응답 반환용 (링크 제목과 URL 제공)
 class PersonalAnalysis(BaseModel):
     effect: str
     solution: str
     links: list[Link] = []
+    similar_articles: list[SimilarArticle] = []
 
     model_config = ConfigDict(from_attributes=True)
 
