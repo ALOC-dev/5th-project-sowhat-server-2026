@@ -4,13 +4,21 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import app.services.llm.tavily_client as tavily_client
-from app.services.llm.reference_links import resolve_reference_links
-from app.services.llm.trusted_domains import TRUSTED_DOMAINS, is_trusted_url
-from app.services.llm.tavily_client import (
-    search_link_name,
-    search_link_names,
+import app.services.search.tavily_client as tavily_client
+from app.services.search.reference_links import resolve_reference_links
+from app.services.search.trusted_links import (
+    TRUSTED_DOMAINS,
+    is_trusted_url,
 )
+from app.services.search.tavily_client import (
+    search_link_target,
+    search_link_targets,
+)
+
+
+def target(source_name: str, search_purpose: str = "") -> dict:
+    return {"source_name": source_name, "search_purpose": search_purpose}
+
 
 # ── 목록 매핑 ────────────────────────────────────────────────
 
@@ -107,7 +115,7 @@ async def test_검색_결과에_0부터_번호가_붙는다(fake_client):
         ]
     }
 
-    response = await search_link_name("창원시")
+    response = await search_link_target(target("창원시"))
 
     assert response["query"] == "창원시"
     assert [result["index"] for result in response["results"]] == [0, 1]
@@ -118,17 +126,22 @@ async def test_검색_결과에_0부터_번호가_붙는다(fake_client):
 async def test_검색_결과가_없으면_빈_dict를_반환한다(fake_client):
     fake_client.search.return_value = {"results": []}
 
-    assert await search_link_name("없는기관") == {}
+    assert await search_link_target(target("없는기관")) == {}
 
 
 # 검색 결과를 그대로 쓰면 LLM이 주소를 지어내는 것과 위험이 비슷해진다
-async def test_신뢰_도메인으로_검색_범위를_제한한다(fake_client):
-    fake_client.search.return_value = {"results": [{"url": "https://www.mois.go.kr"}]}
+async def test_등록_도메인이_아닌_검색_결과는_제거한다(fake_client):
+    fake_client.search.return_value = {
+        "results": [{"url": "https://example.com/economic-indicator"}]
+    }
 
-    await search_link_name("행정안전부")
+    result = await search_link_target(target("한국은행 경제통계시스템", "경제지표"))
 
-    _, kwargs = fake_client.search.call_args
-    assert kwargs["include_domains"] == TRUSTED_DOMAINS
+    assert result == {}
+    assert fake_client.search.await_args.args[0] == "경제지표"
+    assert fake_client.search.await_args.kwargs["include_domains"] == [
+        "ecos.bok.or.kr"
+    ]
 
 
 async def test_이름마다_한_번씩_검색해_모아준다(fake_client):
@@ -137,18 +150,22 @@ async def test_이름마다_한_번씩_검색해_모아준다(fake_client):
 
     fake_client.search.side_effect = fake_search
 
-    responses = await search_link_names(["창원시", "수원시"])
+    responses = await search_link_targets([target("창원시"), target("수원시")])
 
     assert [response["query"] for response in responses] == ["창원시", "수원시"]
     assert fake_client.search.await_count == 2
+    assert all(
+        call.kwargs["include_domains"] == TRUSTED_DOMAINS
+        for call in fake_client.search.await_args_list
+    )
 
 
 # API 키가 없는 환경에서도 서버가 죽지 않아야 한다
 async def test_API_키가_없으면_검색을_건너뛴다():
     with patch.object(tavily_client, "get_client", return_value=None):
-        assert await search_link_names(["창원시"]) == []
+        assert await search_link_targets([target("창원시")]) == []
 
 
 async def test_검색할_이름이_없으면_검색하지_않는다(fake_client):
-    assert await search_link_names([]) == []
+    assert await search_link_targets([]) == []
     assert fake_client.search.await_count == 0
