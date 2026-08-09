@@ -1,3 +1,4 @@
+import re
 from fastapi import HTTPException, Request, Response, status
 from jose import JWTError
 from sqlalchemy.orm import Session
@@ -14,15 +15,27 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.exceptions.domain import DuplicateLoginIdError
+from app.exceptions.domain import DuplicateLoginIdError, InvalidArgumentError
 from app.models.user import User
 from app.schemas.user import LoginRequest, SignupRequest
 
 
+def _validate_password(value, field_name: str = "비밀번호") -> None:
+    if value is None or not isinstance(value, str):
+        raise InvalidArgumentError(f"{field_name}를 올바른 형식으로 입력해 주세요.")
+    elif len(value) < 8 or (
+        value.isalpha() or value.isdigit() or re.fullmatch(r"[^A-Za-z0-9]", value)
+    ):
+        raise InvalidArgumentError(
+            f"{field_name}는 8자 이상이며 영문·숫자·특수문자 중 2가지 이상을 포함해야 해요."
+        )
+
+
 async def signup(db: Session, payload: SignupRequest) -> User:
     user_service._validate_create_user_payload(payload)
+    _validate_password(payload.password)
 
-    if crud.get_user_by_login_id(db, payload.login_id) is not None:
+    if crud.exists_user_by_login_id(db, payload.login_id):
         raise DuplicateLoginIdError()
 
     user_data = payload.model_dump(exclude={"password"})

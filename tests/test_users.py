@@ -251,12 +251,19 @@ def test_check_login_id_available(client):
     assert data["available"] == True
 
 
-# payload 오류 처리
+# payload 형식이 정확하지 않은 경우 (login_id 필드가 없음)
 def test_check_id_invalid_payload(client):
-    # payload 형식이 정확하지 않은 경우 (login_id 필드가 없음)
     response = client.post("/api/users/check-id", json={"id": "userr"})
     assert response.status_code == 400
 
-    # 로그인 id의 길이가 4자 미만인 경우 (비즈니스 로직 위반)
+
+# 로그인 id의 길이가 4자 미만인 경우 (비즈니스 로직 위반)
+def test_check_id_length(client):
     response = client.post("/api/users/check-id", json={"login_id": "abc"})
+    assert response.status_code == 400
+
+
+# 로그인 id가 영문/숫자/언더바 구성이 아닌 경우 (비즈니스 로직 위반)
+def test_check_id_characters(client):
+    response = client.post("/api/users/check-id", json={"login_id": "abc가나다"})
     assert response.status_code == 400

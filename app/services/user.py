@@ -1,3 +1,4 @@
+import re
 from enum import Enum
 
 from sqlalchemy.orm import Session
@@ -16,11 +17,9 @@ USER_ENUM_FIELD_NAMES = ("gender", "region", "job", "interest", "purpose")
 def _validate_login_id(value, field_name: str = "사용자 ID") -> None:
     if value is None or not isinstance(value, str):
         raise InvalidArgumentError(f"{field_name}를 올바른 형식으로 입력해 주세요.")
-    elif len(value) < 4:
-        raise InvalidArgumentError(f"{field_name}는 4자 이상 입력해 주세요.")
-    elif not value.isalnum():
+    elif len(value) < 4 or not re.fullmatch(r"[A-Za-z0-9_]+", value):
         raise InvalidArgumentError(
-            f"{field_name}는 영문 또는 숫자로 이루어져야 합니다."
+            f"{field_name}는 4자 이상이며 영문 대소문자·숫자·언더바( _ ) 기호만 포함해야 해요."
         )
 
 
