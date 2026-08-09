@@ -92,15 +92,19 @@ async def search_link_target(link_target: dict) -> dict:
     client = get_client()
 
     source_name = link_target["source_name"]
+    search_purpose = link_target["search_purpose"]
 
-    if source_name in TRUSTED_HOSTS.keys():
+    registered_domain = TRUSTED_HOSTS.get(source_name)
+
+    if registered_domain:
         # 기관이 우리가 고른 화이트리스트에 포함되면 해당 기관의 호스트명으로만 검색
-        domains = [TRUSTED_HOSTS[source_name]]
+        domains = [registered_domain]
+        query = search_purpose.strip()
     else:
         # 화이트리스트에 없는 기관이면 더 넓은 범위 (or.kr, go.kr 등 전체)에서 검색
         domains = TRUSTED_DOMAINS
+        query = f"{source_name} {search_purpose}".strip()
 
-    query = f"{source_name} {link_target["search_purpose"]}".strip()
 
     response = await client.search(
         query,
@@ -109,6 +113,19 @@ async def search_link_target(link_target: dict) -> dict:
     )
 
     results = response.get("results", [])
+
+    if registered_domain:
+        normalized_domain = registered_domain.removeprefix("www.")
+        results = [
+            result
+            for result in results
+            if (
+                host := (urlparse(result.get("url", "")).hostname or "")
+                .removeprefix("www.")
+            )
+            == normalized_domain
+            or host.endswith(f".{normalized_domain}")
+        ]
 
     if len(results) == 0:
         return {}
