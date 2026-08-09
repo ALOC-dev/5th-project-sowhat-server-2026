@@ -10,7 +10,7 @@ from app.schemas.user import (
 )
 import app.services.article as article_service
 import app.services.auth as auth_service
-import app.services.user as service
+import app.services.user as user_service
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -34,8 +34,20 @@ async def update_my_profile(
     db: Session = Depends(get_db),
 ):
     current_user = auth_service.get_current_user(db, request)
-    user = await service.update_user(db, current_user.id, payload, background_tasks)
+    user = await user_service.update_user(
+        db, current_user.id, payload, background_tasks
+    )
     return user
+
+
+# ── PATCH /api/users/me ─────────────────────────────────────
+# 비밀번호 변경
+@router.patch("/me/password", response_model=dict[str, bool])
+def update_my_password(
+    payload: dict[str, str], request: Request, db: Session = Depends(get_db)
+):
+    current_user = auth_service.get_current_user(db, request)
+    return user_service.update_user_password(db, current_user.id, payload)
 
 
 # ── GET /api/users/me/articles ──────────────────────────────
@@ -55,4 +67,4 @@ def get_my_viewed_articles(
 # 중복 login_id가 있는지 조회
 @router.post("/check-id", response_model=dict[str, bool])
 def check_duplicate_id(payload: dict[str, str], db: Session = Depends(get_db)):
-    return service.check_duplicate_id(db, payload)
+    return user_service.check_duplicate_id(db, payload)
