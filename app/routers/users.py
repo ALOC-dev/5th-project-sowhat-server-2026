@@ -40,7 +40,7 @@ async def update_my_profile(
     return user
 
 
-# ── PATCH /api/users/me ─────────────────────────────────────
+# ── PATCH /api/users/me/password ────────────────────────────
 # 비밀번호 변경
 @router.patch("/me/password", response_model=dict[str, bool])
 def update_my_password(
