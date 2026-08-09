@@ -67,7 +67,7 @@ def client(monkeypatch):
     async def no_crawling(*args, **kwargs):
         return None
 
-    monkeypatch.setattr("app.main.run_yonhap_crawling_periodically", no_crawling)
+    monkeypatch.setattr("app.main.start_crawling_thread", no_crawling)
 
     def override_get_db():
         db = TestingSessionLocal()

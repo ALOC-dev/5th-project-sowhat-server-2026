@@ -13,6 +13,17 @@ from app.services.llm_service import filter_user_extra_information
 USER_ENUM_FIELD_NAMES = ("gender", "region", "job", "interest", "purpose")
 
 
+def _validate_login_id(value, field_name: str = "사용자 ID") -> None:
+    if value is None or not isinstance(value, str):
+        raise InvalidArgumentError(f"{field_name}를 올바른 형식으로 입력해 주세요.")
+    elif len(value) < 4:
+        raise InvalidArgumentError(f"{field_name}는 4자 이상 입력해 주세요.")
+    elif not value.isalnum():
+        raise InvalidArgumentError(
+            f"{field_name}는 영문 또는 숫자로 이루어져야 합니다."
+        )
+
+
 def _validate_natural_number(value, field_name: str) -> None:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise InvalidArgumentError(f"{field_name}은(는) 자연수여야 합니다.")
@@ -40,6 +51,8 @@ def _get_payload_field_annotation(
 
 
 def _validate_create_user_payload(payload: UserCreateRequest) -> None:
+    _validate_login_id(payload.login_id)
+
     _validate_natural_number(payload.age, "age")
 
     for field_name in USER_ENUM_FIELD_NAMES:
@@ -139,3 +152,11 @@ async def update_user(
     # 프로필 임베딩 생성은 백그라운드로 빼기
     background_tasks.add_task(attach_profile_embedding, db, user)
     return user
+
+
+def check_duplicate_id(db: Session, payload: dict[str, str]) -> dict[str, bool]:
+    login_id = payload.get("login_id", None)
+    _validate_login_id(login_id)
+
+    exists = crud.exists_user_by_login_id(db, login_id)
+    return {"available": not exists}

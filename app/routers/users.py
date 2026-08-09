@@ -4,8 +4,6 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.schemas.personal_analysis import ViewedArticleResponse
 from app.schemas.user import (
-    UserCreateRequest,
-    UserCreateResponse,
     UserGetResponse,
     UserUpdateRequest,
     UserUpdateResponse,
@@ -51,3 +49,10 @@ def get_my_viewed_articles(
 ):
     current_user = auth_service.get_current_user(db, request)
     return article_service.get_viewed_articles(db, current_user.id, limit, offset)
+
+
+# ── POST /api/users/check-id ──────────────────────────────
+# 중복 login_id가 있는지 조회
+@router.post("/check-id", response_model=dict[str, bool])
+def check_duplicate_id(payload: dict[str, str], db: Session = Depends(get_db)):
+    return service.check_duplicate_id(db, payload)

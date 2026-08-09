@@ -29,9 +29,7 @@ def mock_embedding(monkeypatch):
     async def fake_embedding(user):
         return [0.0] * 1536
 
-    monkeypatch.setattr(
-        user_service, "generate_user_profile_embedding", fake_embedding
-    )
+    monkeypatch.setattr(user_service, "generate_user_profile_embedding", fake_embedding)
 
 
 # ── POST /api/users ─────────────────────────────────────────
@@ -39,7 +37,9 @@ def mock_embedding(monkeypatch):
 
 # POST /api/users는 비밀번호를 받지 않지만 user.hashed_password가 NOT NULL이라
 # 현재 스키마에서는 저장이 불가능하다. 회원가입은 /api/auth/signup으로 일원화 필요.
-@pytest.mark.skip(reason="POST /api/users가 hashed_password NOT NULL 제약으로 동작 불가")
+@pytest.mark.skip(
+    reason="POST /api/users가 hashed_password NOT NULL 제약으로 동작 불가"
+)
 def test_create_user_success(client):
     response = client.post("/api/users", json=USER_PAYLOAD)
 
@@ -224,3 +224,39 @@ def test_get_my_viewed_articles_without_login(client):
     response = client.get("/api/users/me/articles")
 
     assert response.status_code == 401
+
+
+# ── POST /api/users/check-id ──────────────────────────────
+
+
+# 이미 있는 ID에 대해 조회
+def test_check_login_id_exists(client):
+    # 조회 전 미리 "testuser" 아이디로 계정 만들기
+    signup = client.post("/api/auth/signup", json=SIGNUP_PAYLOAD)
+    assert signup.status_code == 201
+
+    response = client.post("/api/users/check-id", json={"login_id": "testuser"})
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["available"] == False
+
+
+# 중복 아닌 새로운 ID에 대해 조회
+def test_check_login_id_available(client):
+    response = client.post("/api/users/check-id", json={"login_id": "user10000"})
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["available"] == True
+
+
+# payload 오류 처리
+def test_check_id_invalid_payload(client):
+    # payload 형식이 정확하지 않은 경우 (login_id 필드가 없음)
+    response = client.post("/api/users/check-id", json={"id": "userr"})
+    assert response.status_code == 400
+
+    # 로그인 id의 길이가 4자 미만인 경우 (비즈니스 로직 위반)
+    response = client.post("/api/users/check-id", json={"login_id": "abc"})
+    assert response.status_code == 400
