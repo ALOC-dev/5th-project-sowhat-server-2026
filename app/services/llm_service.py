@@ -144,10 +144,14 @@ async def select_search_result(
 
     time_start = datetime.now()
     for sr in all_search_responses:
-        search_query = sr.get("query")
-        search_results = sr.get("results")
+        # 검색 결과 중 하나라도 예외가 발생하거나 일정 형식으로 나오지 않으면 스킵 처리
+        if not isinstance(sr, dict):
+            continue
 
-        if not search_results or len(search_results) == 0:
+        search_query = sr.get("query", None)
+        search_results = sr.get("results", None)
+
+        if not search_query or not search_results or len(search_results) == 0:
             continue
 
         prompt = LINK_SEARCH_PROMPT.format(

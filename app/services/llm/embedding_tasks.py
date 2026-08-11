@@ -130,26 +130,20 @@ async def create_article_embeddings(results: list[dict]):
 
 
 # 사용자가 클릭한 기사를 행동 임베딩에 반영 (기존 0.9 : 기사 0.1 가중합 후 정규화)
-async def update_behavior_embedding(user_id: int, article_id: int) -> None:
+async def update_behavior_embedding(user: User, article: Article) -> None:
     db = SessionLocal()
     try:
-        user = user_crud.get_user_by_id(db, user_id)
-        article = article_crud.get_article_by_id(db, article_id)
-        if user is None or article is None:
-            return
-
         _, behavior_embedding = await get_or_create_user_embedding(db, user)
-
         article_embedding = await _get_or_create_article_embedding(db, article)
 
         behavior_embedding = behavior_embedding * 0.9 + article_embedding * 0.1
         behavior_embedding /= np.linalg.norm(behavior_embedding)  # 정규화
-        user_crud.update_user(db, user_id, {"behavior_embedding": behavior_embedding})
+        user_crud.update_user(db, user.id, {"behavior_embedding": behavior_embedding})
 
     except Exception as exc:
         print(
             f"[ERROR] 행동 임베딩 백그라운드 업데이트 실패 "
-            f"(user_id={user_id}, article_id={article_id}): {exc}"
+            f"(user_id={user.id}, article_id={article.id}): {exc}"
         )
 
     finally:

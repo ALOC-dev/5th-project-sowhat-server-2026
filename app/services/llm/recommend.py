@@ -11,7 +11,9 @@ from app.services.llm.embedding_tasks import (
 )
 
 
-async def recommend_by_cosine_similarity(db: Session, user: User) -> list[Article]:
+async def recommend_by_cosine_similarity(
+    db: Session, user: User, top_k: int = 20
+) -> list[Article]:
     # 1. 최근 1일 동안의 뉴스만 필터링하기
     now = datetime.now()
     recent_24_hours = now - timedelta(hours=24)
@@ -37,5 +39,5 @@ async def recommend_by_cosine_similarity(db: Session, user: User) -> list[Articl
         db=db,
         date=recent_24_hours,
         user_embedding=final_user_embedding,
-        limit=20,
+        limit=top_k,
     )
