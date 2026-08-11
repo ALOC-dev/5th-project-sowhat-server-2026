@@ -206,9 +206,10 @@ async def select_search_result(
         )
 
         # 이미 있는 링크와 같으면 버린다.
-        selected_urls = [sr["url"][: sr["url"].index("?")] for sr in selected_results]
+        # (같은 URL 주소에서 쿼리만 달라지는 경우도 거의 유사하기 때문에 버림)
+        selected_urls = [sr["url"][: sr["url"].find("?")] for sr in selected_results]
 
-        if selection["url"] in selected_urls:
+        if selection["url"][: selection["url"].find("?")] in selected_urls:
             print("[SKIP] 중복 링크")
             continue
 

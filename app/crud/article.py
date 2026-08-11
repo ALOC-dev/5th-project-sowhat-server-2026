@@ -50,21 +50,15 @@ def create_articles(db: Session, articles: list[dict]) -> list[Article]:
     return created
 
 
-# 최신 기사 최대 30개 불러오기 (overfetching 예방)
-def get_all_articles(db: Session) -> list[Article]:
-    stmt = select(Article).order_by(Article.published_at.desc()).limit(30)
+# 최신 기사 최대 30개씩 불러오기 (페이지네이션)
+def get_all_articles(db: Session, limit: int = 30, offset: int = 0) -> list[Article]:
+    stmt = (
+        select(Article)
+        .order_by(Article.published_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
     return db.execute(stmt).scalars().all()
-
-
-# 나중에 페이지네이션 구현에 사용
-# def get_all_articles(db, limit, offset):
-#     stmt = (
-#         select(Article)
-#         .order_by(Article.published_at.desc())
-#         .limit(limit)
-#         .offset(offset)
-#     )
-#     return db.execute(stmt).scalars().all()
 
 
 def get_articles_by_date(db: Session, date: datetime) -> list[Article]:
@@ -93,7 +87,7 @@ def find_related_past_articles(
     article: Article,
     top_k: int = 3,
     min_distance: float = 0.05,
-    max_distance: float = 0.6,
+    max_distance: float = 0.5,
 ) -> list[Article]:
     # 임베딩이나 요약이 없으면 인용할 근거를 만들 수 없다
     if article.embedding is None:

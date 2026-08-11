@@ -134,12 +134,12 @@ async def sse_get_personal_analysis(
     link_targets = personal_analysis.pop("link_targets", [])
 
     similar_articles = []
-    for article in related_articles:
+    for ra in related_articles:
         similar_articles.append(
             {
-                "title": article.title,
-                "publisher": article.publisher,
-                "source_url": article.source_url,
+                "title": ra.title,
+                "publisher": ra.publisher,
+                "source_url": ra.source_url,
             }
         )
     personal_analysis["similar_articles"] = similar_articles
