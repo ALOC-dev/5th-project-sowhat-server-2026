@@ -1,16 +1,38 @@
+import re
 from enum import Enum
 
 from sqlalchemy.orm import Session
 
+from app.core.security import hash_password
 import app.crud.user as crud
 from app.models.user import User
 from app.schemas.filtered_extra_information import FilteredExtraInformation
-from app.schemas.user import UserCreateRequest, UserUpdateRequest
+from app.schemas.user import SignupRequest, UserCreateRequest, UserUpdateRequest
 from app.exceptions.domain import UserNotFoundError, InvalidArgumentError
 from app.services.llm_service import generate_user_profile_embedding
 from app.services.llm_service import filter_user_extra_information
 
 USER_ENUM_FIELD_NAMES = ("gender", "region", "job", "interest", "purpose")
+
+
+def _validate_login_id(value, field_name: str = "사용자 ID") -> None:
+    if value is None or not isinstance(value, str):
+        raise InvalidArgumentError(f"{field_name}를 올바른 형식으로 입력해 주세요.")
+    elif len(value) < 4 or not re.fullmatch(r"[A-Za-z0-9_]+", value):
+        raise InvalidArgumentError(
+            f"{field_name}는 4자 이상이며 영문 대소문자·숫자·언더바( _ ) 기호만 포함해야 해요."
+        )
+
+
+def _validate_password(value, field_name: str = "비밀번호") -> None:
+    if value is None or not isinstance(value, str):
+        raise InvalidArgumentError(f"{field_name}를 올바른 형식으로 입력해 주세요.")
+    elif len(value) < 8 or (
+        value.isalpha() or value.isdigit() or re.fullmatch(r"[^A-Za-z0-9]", value)
+    ):
+        raise InvalidArgumentError(
+            f"{field_name}는 8자 이상이며 영문·숫자·특수문자 중 2가지 이상을 포함해야 해요."
+        )
 
 
 def _validate_natural_number(value, field_name: str) -> None:
@@ -32,14 +54,18 @@ def _validate_enum_value(value, enum_class: type[Enum], field_name: str) -> None
 
 
 def _get_payload_field_annotation(
-    payload: UserCreateRequest | UserUpdateRequest, field_name: str
+    payload: SignupRequest | UserUpdateRequest, field_name: str
 ):
     model_fields = getattr(payload.__class__, "model_fields", {})
     field = model_fields.get(field_name)
     return getattr(field, "annotation", None)
 
 
-def _validate_create_user_payload(payload: UserCreateRequest) -> None:
+def _validate_create_user_payload(payload: SignupRequest) -> None:
+    _validate_login_id(payload.login_id)
+
+    _validate_password(payload.password)
+
     _validate_natural_number(payload.age, "age")
 
     for field_name in USER_ENUM_FIELD_NAMES:
@@ -139,3 +165,26 @@ async def update_user(
     # 프로필 임베딩 생성은 백그라운드로 빼기
     background_tasks.add_task(attach_profile_embedding, db, user)
     return user
+
+
+def update_user_password(
+    db: Session, user_id: int, payload: dict[str, str]
+) -> dict[str, bool]:
+    raw_password = payload.get("password", None)
+    _validate_password(raw_password)
+
+    hashed_password = hash_password(raw_password)
+
+    user = crud.update_user(db, user_id, {"password": hashed_password})
+    if user is None:
+        raise UserNotFoundError()
+
+    return {"success": True}
+
+
+def check_duplicate_id(db: Session, payload: dict[str, str]) -> dict[str, bool]:
+    login_id = payload.get("login_id", None)
+    _validate_login_id(login_id)
+
+    exists = crud.exists_user_by_login_id(db, login_id)
+    return {"available": not exists}

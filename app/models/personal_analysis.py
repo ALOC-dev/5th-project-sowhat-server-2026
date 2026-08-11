@@ -30,6 +30,6 @@ class PersonalAnalysis(Base):
         JSON, nullable=True
     )  # solution에서 안내한 공식 창구의 제목과 주소 목록 (없으면 빈 목록)
     title = Column(Text, nullable=False)
-    category = Column(Enum(CategoryEnum, name="category_enum"), nullable=False)
+    category = Column(Enum(CategoryEnum, name="category"), nullable=False)
     similar_articles = Column(JSON, nullable=True)
-    user_response = Column(UserResponseEnum, nullable=True)
+    user_response = Column(Enum(UserResponseEnum, name="user_response"), nullable=True)

@@ -1,3 +1,4 @@
+import re
 from fastapi import HTTPException, Request, Response, status
 from jose import JWTError
 from sqlalchemy.orm import Session
@@ -22,7 +23,7 @@ from app.schemas.user import LoginRequest, SignupRequest
 async def signup(db: Session, payload: SignupRequest) -> User:
     user_service._validate_create_user_payload(payload)
 
-    if crud.get_user_by_login_id(db, payload.login_id) is not None:
+    if crud.exists_user_by_login_id(db, payload.login_id):
         raise DuplicateLoginIdError()
 
     user_data = payload.model_dump(exclude={"password"})

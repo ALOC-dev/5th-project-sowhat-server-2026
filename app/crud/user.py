@@ -1,3 +1,5 @@
+from sqlalchemy import exists, select
+
 from app.models.user import User
 from sqlalchemy.orm import Session
 
@@ -20,6 +22,11 @@ def get_user_by_id(db: Session, id: int) -> User:
 
 def get_user_by_login_id(db: Session, login_id: str) -> User:
     return db.query(User).filter(User.login_id == login_id).first()
+
+
+def exists_user_by_login_id(db: Session, login_id: str) -> bool:
+    stmt = select(exists().where(User.login_id == login_id))
+    return db.execute(stmt).scalar()
 
 
 def update_user(db: Session, id: int, payload: dict) -> User:
