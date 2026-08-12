@@ -144,7 +144,12 @@ async def sse_get_personal_analysis(
     )
     if personal_analysis:
         return (
-            personal_analysis,
+            {
+                "effect": personal_analysis.effect,
+                "solution": personal_analysis.solution,
+                "links": personal_analysis.links,
+                "similar_articles": personal_analysis.similar_articles,
+            },
             [],
         )  # 링크 추가 검색이 필요 없으므로 link_names 자리는 비우기
 
