@@ -69,7 +69,7 @@ def format_related_articles(related_articles: list[Article] | None) -> str:
         return "없음"
 
     return "\n".join(
-        f"- ({article.published_at:%Y년 %m월 %d일}) {article.title}\n  {article.summary}"
+        f"- ({article.published_at:%Y년 %m월 %d일}) | {article.publisher} | {article.title}\n  {article.summary}"
         for article in related_articles
     )
 

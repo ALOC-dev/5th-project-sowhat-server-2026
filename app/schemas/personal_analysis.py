@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import CategoryEnum
@@ -24,6 +26,7 @@ class Link(BaseModel):
 # 유사 기사 응답용
 class SimilarArticle(BaseModel):
     title: str
+    published_at: datetime
     publisher: str
     source_url: str
 

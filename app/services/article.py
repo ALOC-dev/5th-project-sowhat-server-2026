@@ -167,6 +167,7 @@ async def sse_get_personal_analysis(
         similar_articles.append(
             {
                 "title": ra.title,
+                "published_at": f"{ra.published_at:%Y.%m.%d}",
                 "publisher": ra.publisher,
                 "source_url": ra.source_url,
             }
