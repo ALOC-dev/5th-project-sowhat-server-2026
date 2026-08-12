@@ -131,7 +131,7 @@ async def get_experience_analysis(
 # SSE: 해설과 검색에 쓰일 링크 이름만 반환하는 함수
 async def sse_get_personal_analysis(
     db, user: User, article_id: int, background_tasks: BackgroundTasks
-) -> tuple[PersonalAnalysis, list]:
+) -> tuple[dict, list]:
     article = article_crud.get_article_by_id(db, article_id)
     if article is None:
         raise ArticleNotFoundError()
@@ -185,23 +185,26 @@ async def sse_get_personal_analysis(
         },
     )
 
+    # 링크 검색 결과 업데이트를 위해 id 추가
+    personal_analysis["id"] = created.id
+
     # 행동 임베딩 업데이트(필요 시 프로필/기사 임베딩 생성 포함)는
     # 당장 필요하지 않으므로 응답 후 백그라운드에서 처리
     background_tasks.add_task(update_behavior_embedding, user, article)
 
-    return created, link_targets
+    return personal_analysis, link_targets
 
 
 async def sse_update_search_result(
-    db: Session, personal_analysis: PersonalAnalysis, link_targets: list[str]
+    db: Session, personal_analysis: dict, link_targets: list[str]
 ) -> list[dict]:
     selected_links = await select_search_result(
-        personal_analysis.solution, link_targets
+        personal_analysis["solution"], link_targets
     )
 
     personal_crud.update_analysis(
         db,
-        personal_analysis.id,
+        personal_analysis["id"],
         {"links": selected_links},
     )
 
