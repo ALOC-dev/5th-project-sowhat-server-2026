@@ -8,11 +8,13 @@ from app.schemas.filtered_extra_information import FilteredExtraInformation
 from app.schemas.personal_analysis import (
     LinkSelectionResult,
     PersonalAnalysisBeforeSearch,
+    ExperienceAnalysis,
 )
 from app.services.llm.openai_client import create_json_completion, get_embedding
 from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
     PERSONAL_ANALYSIS_PROMPT,
+    EXPERIENCE_ANALYSIS_PROMPT,
     SYSTEM_JSON_PROMPT,
     FILTER_EXTRA_INFORMATION_PROMPT,
     LINK_SEARCH_PROMPT,
@@ -120,6 +122,40 @@ async def generate_personal_analysis(
             ],
         }
     """
+    return parsed
+
+
+async def generate_experience_analysis(
+    article: Article,
+    age_group: str,
+    job: str,
+    interest: str,
+) -> dict:
+    # 개인해설 미리보기도 요약문을 기사 골자로 삼으므로 요약이 없으면 먼저 생성한다
+    summary = article.summary
+    if summary is None:
+        common_analysis = await generate_common_analysis(article)
+        summary = common_analysis["summary"]
+
+    prompt = EXPERIENCE_ANALYSIS_PROMPT.format(
+        title=article.title,
+        category=category_value(article.category),
+        summary=summary,
+        age_group=age_group,
+        job=job,
+        interest=interest,
+    )
+
+    response = await create_json_completion(
+        messages=[
+            {"role": "system", "content": SYSTEM_JSON_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        response_format=ExperienceAnalysis,
+    )
+
+    parsed = response.choices[0].message.parsed.model_dump()
+
     return parsed
 
 

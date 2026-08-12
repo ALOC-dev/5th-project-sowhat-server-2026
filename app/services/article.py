@@ -5,12 +5,13 @@ from sqlalchemy.orm import Session
 
 import app.crud.article as article_crud
 import app.crud.personal_analysis as personal_crud
-import app.crud.user as user_crud
+import app.crud.experience_analysis as experience_analysis_crud
 
 from app.db.database import SessionLocal
 from app.models.article import Article
 from app.models.personal_analysis import PersonalAnalysis
 from app.exceptions.domain import ArticleNotFoundError, UserNotFoundError
+from app.models.enums import AgeGroupEnum, CategoryEnum, JobEnum
 from app.models.user import User
 from app.services.llm.embedding_tasks import (
     ensure_article_embedding,
@@ -19,6 +20,7 @@ from app.services.llm.embedding_tasks import (
 from app.services.llm_service import (
     generate_common_analysis,
     generate_personal_analysis,
+    generate_experience_analysis,
     select_search_result,
 )
 from app.services.llm.recommend import recommend_by_cosine_similarity
@@ -40,16 +42,6 @@ def get_all_articles(db: Session) -> list[Article]:
     articles = article_crud.get_all_articles(db)
 
     return _truncate_preview_content(articles)
-
-
-# async def get_recommended_articles(db: Session, user_id: int) -> list[Article]:
-#     user = user_crud.get_user_by_id(db, user_id)
-#     if user is None:
-#         raise UserNotFoundError()
-
-#     top_20_articles = await recommend_by_cosine_similarity(db, user)
-
-#     return _truncate_preview_content(top_20_articles)
 
 
 async def get_recommended_articles(db: Session, user: User) -> list[Article]:
@@ -97,6 +89,43 @@ async def get_common_analysis(
 
     article.content = article.content[:120] + "..."
     return article
+
+
+# 비로그인 사용자용 개인해설 미리보기 (effect만 생성, 임베딩 처리 없음)
+# (article_id, age_group, job, interest) 조합으로 캐시해 재활용하고, 없을 때만 LLM 호출
+async def get_experience_analysis(
+    db: Session,
+    article_id: int,
+    age_group: AgeGroupEnum,
+    job: JobEnum,
+    interest: CategoryEnum,
+) -> dict:
+    cached = experience_analysis_crud.get_experience_analysis(
+        db, article_id, age_group, job, interest
+    )
+    if cached:
+        return {"effect": cached.effect}
+
+    article = article_crud.get_article_by_id(db, article_id)
+    if article is None:
+        raise ArticleNotFoundError()
+
+    experience_analysis = await generate_experience_analysis(
+        article, age_group.value, job.value, interest.value
+    )
+
+    experience_analysis_crud.create_experience_analysis(
+        db,
+        {
+            "article_id": article_id,
+            "age_group": age_group,
+            "job": job,
+            "interest": interest,
+            "effect": experience_analysis["effect"],
+        },
+    )
+
+    return experience_analysis
 
 
 # SSE: 해설과 검색에 쓰일 링크 이름만 반환하는 함수

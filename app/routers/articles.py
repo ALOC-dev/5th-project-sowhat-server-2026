@@ -3,8 +3,9 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 
+from app.models.enums import AgeGroupEnum, CategoryEnum, JobEnum
 from app.schemas.article import ArticlePreviewResponse, ArticleDetailResponse
-from app.schemas.personal_analysis import PersonalAnalysis
+from app.schemas.personal_analysis import ExperienceAnalysis
 
 import app.services.article as article_service
 import app.services.auth as auth_service
@@ -43,6 +44,20 @@ async def get_article(
         db, article_id, background_tasks
     )
     return article_detail
+
+
+# ── GET /articles/{article_id}/analysis/experience ────────────
+@router.get("/{article_id}/analysis/experience", response_model=ExperienceAnalysis)
+async def get_experience_analysis(
+    article_id: int,
+    age_group: AgeGroupEnum = Query(alias="age-group"),
+    job: JobEnum = Query(...),
+    interest: CategoryEnum = Query(...),
+    db: Session = Depends(get_db),
+):
+    return await article_service.get_experience_analysis(
+        db, article_id, age_group, job, interest
+    )
 
 
 # ── GET /articles/{article_id}/analysis/stream ─────────────

@@ -67,6 +67,13 @@ class PersonalAnalysisBeforeSearch(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# 비로그인 사용자용 라이트 개인해설 (effect 미리보기만 제공)
+class ExperienceAnalysis(BaseModel):
+    effect: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Tavily 검색 결과 중 2차 LLM이 선택한 결과
 class LinkSelectionResult(BaseModel):
     success: bool
