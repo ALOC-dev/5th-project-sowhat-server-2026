@@ -5,7 +5,11 @@ from app.db.database import get_db
 
 from app.models.enums import AgeGroupEnum, CategoryEnum, JobEnum
 from app.schemas.article import ArticlePreviewResponse, ArticleDetailResponse
-from app.schemas.personal_analysis import ExperienceAnalysis
+from app.schemas.personal_analysis import (
+    AnalysisReactionRequest,
+    AnalysisReactionResponse,
+    ExperienceAnalysis,
+)
 
 import app.services.article as article_service
 import app.services.auth as auth_service
@@ -19,6 +23,22 @@ def list_articles(
     db: Session = Depends(get_db),
 ):
     return article_service.get_all_articles(db)
+
+
+# POST /articles/{article_id}/analysis/reaction
+@router.post(
+    "/{article_id}/analysis/reaction", response_model=AnalysisReactionResponse
+)
+def submit_analysis_reaction(
+    article_id: int,
+    payload: AnalysisReactionRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = auth_service.get_current_user(db, request)
+    return article_service.submit_analysis_reaction(
+        db, current_user.id, article_id, payload.user_response
+    )
 
 
 # ── GET /articles/recommendations ─────────────────────────

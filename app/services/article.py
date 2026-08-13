@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 
 import app.crud.article as article_crud
@@ -11,7 +11,7 @@ from app.db.database import SessionLocal
 from app.models.article import Article
 from app.models.personal_analysis import PersonalAnalysis
 from app.exceptions.domain import ArticleNotFoundError, UserNotFoundError
-from app.models.enums import AgeGroupEnum, CategoryEnum, JobEnum
+from app.models.enums import AgeGroupEnum, CategoryEnum, JobEnum, UserResponseEnum
 from app.models.user import User
 from app.services.llm.embedding_tasks import (
     ensure_article_embedding,
@@ -60,6 +60,23 @@ def get_viewed_articles(
     db: Session, user_id: int, limit: int, offset: int
 ) -> list[PersonalAnalysis]:
     return personal_crud.get_viewed_analyses(db, user_id, limit, offset)
+def submit_analysis_reaction(
+    db: Session,
+    user_id: int,
+    article_id: int,
+    user_response: UserResponseEnum,
+) -> PersonalAnalysis:
+    personal_analysis = personal_crud.get_analysis_by_article_and_user(
+        db, article_id, user_id
+    )
+    if personal_analysis is None:
+        raise HTTPException(status_code=404, detail="Personal analysis not found.")
+
+    return personal_crud.update_analysis(
+        db, personal_analysis.id, {"user_response": user_response}
+    )
+
+
 
 
 async def get_common_analysis(
