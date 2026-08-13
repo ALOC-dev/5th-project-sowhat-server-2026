@@ -4,6 +4,7 @@ from jose import JWTError
 from sqlalchemy.orm import Session
 
 import app.crud.user as crud
+from app.exceptions.security import AuthenticationError
 import app.services.user as user_service
 from app.services.llm_service import filter_user_extra_information
 from app.core.config import settings
@@ -44,16 +45,10 @@ def login(db: Session, payload: LoginRequest, response: Response):
     user = crud.get_user_by_login_id(db, payload.login_id)
 
     if user is None or user.hashed_password is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="이메일 또는 비밀번호가 올바르지 않습니다.",
-        )
+        raise AuthenticationError("아이디 또는 비밀번호가 올바르지 않습니다.")
 
     if not verify_password(payload.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="이메일 또는 비밀번호가 올바르지 않습니다.",
-        )
+        raise AuthenticationError("아이디 또는 비밀번호가 올바르지 않습니다.")
 
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)

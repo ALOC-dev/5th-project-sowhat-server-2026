@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import CategoryEnum
@@ -24,6 +26,7 @@ class Link(BaseModel):
 # 유사 기사 응답용
 class SimilarArticle(BaseModel):
     title: str
+    published_at: datetime
     publisher: str
     source_url: str
 
@@ -63,6 +66,13 @@ class PersonalAnalysisBeforeSearch(BaseModel):
     effect: str
     solution: str
     link_targets: list[LinkSearchTarget] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# 비로그인 사용자용 라이트 개인해설 (effect 미리보기만 제공)
+class ExperienceAnalysis(BaseModel):
+    effect: str
 
     model_config = ConfigDict(from_attributes=True)
 

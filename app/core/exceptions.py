@@ -14,10 +14,8 @@ def _error_response(status_code: int, message: str, error_code: str) -> JSONResp
         status_code=status_code,
         content={
             "success": False,
-            "error": {
-                "code": error_code,
-                "message": message,
-            },
+            "code": error_code,
+            "message": message,
         },
     )
 

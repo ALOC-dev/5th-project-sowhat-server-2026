@@ -6,10 +6,7 @@ import pytest
 
 import app.services.search.tavily_client as tavily_client
 from app.services.search.reference_links import resolve_reference_links
-from app.services.search.trusted_links import (
-    TRUSTED_DOMAINS,
-    is_trusted_url,
-)
+from tests.trusted_url_util import *
 from app.services.search.tavily_client import (
     search_link_target,
     search_link_targets,
@@ -139,9 +136,7 @@ async def test_등록_도메인이_아닌_검색_결과는_제거한다(fake_cli
 
     assert result == {}
     assert fake_client.search.await_args.args[0] == "경제지표"
-    assert fake_client.search.await_args.kwargs["include_domains"] == [
-        "ecos.bok.or.kr"
-    ]
+    assert fake_client.search.await_args.kwargs["include_domains"] == ["ecos.bok.or.kr"]
 
 
 async def test_이름마다_한_번씩_검색해_모아준다(fake_client):

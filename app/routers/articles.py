@@ -1,11 +1,14 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
+from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 
+from app.models.enums import AgeGroupEnum, CategoryEnum, JobEnum
 from app.schemas.article import ArticlePreviewResponse, ArticleDetailResponse
-from app.schemas.personal_analysis import PersonalAnalysis
+from app.schemas.personal_analysis import ExperienceAnalysis
 
-import app.services.article as service
+import app.services.article as article_service
+import app.services.auth as auth_service
 
 router = APIRouter(prefix="/api/articles", tags=["articles"])
 
@@ -15,32 +18,19 @@ router = APIRouter(prefix="/api/articles", tags=["articles"])
 def list_articles(
     db: Session = Depends(get_db),
 ):
-    return service.get_all_articles(db)
+    return article_service.get_all_articles(db)
 
 
-# ── GET /articles/recommendations?user-id=xxx ─────────────
+# ── GET /articles/recommendations ─────────────────────────
 @router.get("/recommendations", response_model=list[ArticlePreviewResponse])
 async def get_recommended_articles(
-    user_id: int = Query(alias="user-id"),
+    request: Request,
     db: Session = Depends(get_db),
 ):
-    recommendation = await service.get_recommended_articles(db, user_id)
+    current_user = auth_service.get_current_user(db, request)
+
+    recommendation = await article_service.get_recommended_articles(db, current_user)
     return recommendation
-
-
-# ── GET /articles/analysis (순서 중요: /{article_id} 보다 위) ──
-# 호출될 시 사용자가 뉴스를 조회한 것을 누적 태그 점수에 반영
-@router.get("/analysis", response_model=PersonalAnalysis)
-async def get_analysis(
-    background_tasks: BackgroundTasks,
-    article_id: int = Query(alias="article-id"),
-    user_id: int = Query(alias="user-id"),
-    db: Session = Depends(get_db),
-):
-    analysis = await service.get_personal_analysis(
-        db, article_id, user_id, background_tasks
-    )
-    return analysis
 
 
 # ── GET /articles/{article_id} ────────────────────────────
@@ -50,5 +40,54 @@ async def get_article(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    article_detail = await service.get_common_analysis(db, article_id, background_tasks)
+    article_detail = await article_service.get_common_analysis(
+        db, article_id, background_tasks
+    )
     return article_detail
+
+
+# ── GET /articles/{article_id}/analysis/experience ────────────
+@router.get("/{article_id}/analysis/experience", response_model=ExperienceAnalysis)
+async def get_experience_analysis(
+    article_id: int,
+    age_group: AgeGroupEnum = Query(alias="age-group"),
+    job: JobEnum = Query(...),
+    interest: CategoryEnum = Query(...),
+    db: Session = Depends(get_db),
+):
+    return await article_service.get_experience_analysis(
+        db, article_id, age_group, job, interest
+    )
+
+
+# ── GET /articles/{article_id}/analysis/stream ─────────────
+@router.get("/{article_id}/analysis/stream", response_class=EventSourceResponse)
+async def get_personal_analysis_stream(
+    background_tasks: BackgroundTasks,
+    article_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    try:
+        current_user = auth_service.get_current_user(db, request)
+
+        analysis, link_targets = await article_service.sse_get_personal_analysis(
+            db, current_user, article_id, background_tasks
+        )
+
+        yield ServerSentEvent(data=analysis, event="analysis")
+
+        if len(link_targets) > 0:
+            yield ServerSentEvent(
+                data=await article_service.sse_update_search_result(
+                    db, analysis, link_targets
+                ),
+                event="links",
+            )
+
+    except Exception as exc:
+        print(exc)
+        yield ServerSentEvent(data=exc, event="error")
+
+    finally:
+        yield ServerSentEvent(data={}, event="done")

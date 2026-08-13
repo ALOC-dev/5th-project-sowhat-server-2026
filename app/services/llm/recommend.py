@@ -11,7 +11,9 @@ from app.services.llm.embedding_tasks import (
 )
 
 
-async def recommend_by_cosine_similarity(db: Session, user: User) -> list[Article]:
+async def recommend_by_cosine_similarity(
+    db: Session, user: User, top_k: int = 20
+) -> list[Article]:
     # 1. 최근 1일 동안의 뉴스만 필터링하기
     now = datetime.now()
     recent_24_hours = now - timedelta(hours=24)
@@ -20,11 +22,12 @@ async def recommend_by_cosine_similarity(db: Session, user: User) -> list[Articl
 
     # 2. 필터링된 각 뉴스에 임베딩/요약 정보가 없을 경우 생성하기
     for article in articles:
-        await ensure_article_embedding(article.id)
+        if article.embedding is None:
+            await ensure_article_embedding(article.id)
 
     # 3. 사용자의 프로필 및 행동 임베딩 불러오기
     #   3-1. 프로필/행동 임베딩이 없을 경우 생성
-    p_embedding, b_embedding = get_or_create_user_embedding(db, user)
+    p_embedding, b_embedding = await get_or_create_user_embedding(db, user)
 
     # 4. 사용자 프로필 임베딩, 행동 임베딩을 하나로 합침
     #   4-1. 두 임베딩을 0.7 : 0.3 비율로 가중합
@@ -37,5 +40,5 @@ async def recommend_by_cosine_similarity(db: Session, user: User) -> list[Articl
         db=db,
         date=recent_24_hours,
         user_embedding=final_user_embedding,
-        limit=20,
+        top_k=top_k,
     )

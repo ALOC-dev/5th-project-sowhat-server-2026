@@ -6,7 +6,6 @@
 """
 
 import json
-
 import pytest
 
 from app.services.llm.openai_client import create_json_completion
@@ -185,7 +184,7 @@ async def test_filtering_prompt():
 
 from app.services.llm.prompts import LINK_SEARCH_PROMPT
 from app.services.search.tavily_client import get_client
-from app.services.search.trusted_links import TRUSTED_SUFFIXES, TRUSTED_HOSTS
+from tests.trusted_url_util import *
 
 
 async def test_select_search_result():

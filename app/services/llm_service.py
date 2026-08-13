@@ -8,11 +8,13 @@ from app.schemas.filtered_extra_information import FilteredExtraInformation
 from app.schemas.personal_analysis import (
     LinkSelectionResult,
     PersonalAnalysisBeforeSearch,
+    ExperienceAnalysis,
 )
 from app.services.llm.openai_client import create_json_completion, get_embedding
 from app.services.llm.prompts import (
     COMMON_ANALYSIS_PROMPT,
     PERSONAL_ANALYSIS_PROMPT,
+    EXPERIENCE_ANALYSIS_PROMPT,
     SYSTEM_JSON_PROMPT,
     FILTER_EXTRA_INFORMATION_PROMPT,
     LINK_SEARCH_PROMPT,
@@ -67,7 +69,7 @@ def format_related_articles(related_articles: list[Article] | None) -> str:
         return "없음"
 
     return "\n".join(
-        f"- ({article.published_at:%Y년 %m월 %d일}) {article.title}\n  {article.summary}"
+        f"- ({article.published_at:%Y년 %m월 %d일}) | {article.publisher} | {article.title}\n  {article.summary}"
         for article in related_articles
     )
 
@@ -123,6 +125,40 @@ async def generate_personal_analysis(
     return parsed
 
 
+async def generate_experience_analysis(
+    article: Article,
+    age_group: str,
+    job: str,
+    interest: str,
+) -> dict:
+    # 개인해설 미리보기도 요약문을 기사 골자로 삼으므로 요약이 없으면 먼저 생성한다
+    summary = article.summary
+    if summary is None:
+        common_analysis = await generate_common_analysis(article)
+        summary = common_analysis["summary"]
+
+    prompt = EXPERIENCE_ANALYSIS_PROMPT.format(
+        title=article.title,
+        category=category_value(article.category),
+        summary=summary,
+        age_group=age_group,
+        job=job,
+        interest=interest,
+    )
+
+    response = await create_json_completion(
+        messages=[
+            {"role": "system", "content": SYSTEM_JSON_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        response_format=ExperienceAnalysis,
+    )
+
+    parsed = response.choices[0].message.parsed.model_dump()
+
+    return parsed
+
+
 async def select_search_result(
     solution: str,
     link_targets: list[dict],
@@ -144,10 +180,14 @@ async def select_search_result(
 
     time_start = datetime.now()
     for sr in all_search_responses:
-        search_query = sr.get("query")
-        search_results = sr.get("results")
+        # 검색 결과 중 하나라도 예외가 발생하거나 일정 형식으로 나오지 않으면 스킵 처리
+        if not isinstance(sr, dict):
+            continue
 
-        if not search_results or len(search_results) == 0:
+        search_query = sr.get("query", None)
+        search_results = sr.get("results", None)
+
+        if not search_query or not search_results or len(search_results) == 0:
             continue
 
         prompt = LINK_SEARCH_PROMPT.format(
@@ -202,9 +242,10 @@ async def select_search_result(
         )
 
         # 이미 있는 링크와 같으면 버린다.
-        selected_urls = [sr["url"][: sr["url"].index("?")] for sr in selected_results]
+        # (같은 URL 주소에서 쿼리만 달라지는 경우도 거의 유사하기 때문에 버림)
+        selected_urls = [sr["url"][: sr["url"].find("?")] for sr in selected_results]
 
-        if selection["url"] in selected_urls:
+        if selection["url"][: selection["url"].find("?")] in selected_urls:
             print("[SKIP] 중복 링크")
             continue
 

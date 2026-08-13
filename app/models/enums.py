@@ -56,6 +56,14 @@ class JobEnum(str, Enum):
     RETIRED_UNEMPLOYED = "은퇴·무직"
 
 
+class AgeGroupEnum(str, Enum):
+    TEENS = "10대"
+    TWENTIES = "20대"
+    THIRTIES = "30대"
+    FORTIES = "40대"
+    FIFTIES_AND_OVER = "50대 이상"
+
+
 class CategoryEnum(str, Enum):
     POLITICS = "정치"
     ECONOMY = "경제"

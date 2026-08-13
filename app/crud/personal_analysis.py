@@ -30,6 +30,25 @@ def get_analysis_by_article_and_user(
     )
 
 
+def update_analysis(db: Session, id: int, payload: dict) -> PersonalAnalysis:
+    current_analysis = (
+        db.query(PersonalAnalysis).filter(PersonalAnalysis.id == id).first()
+    )
+    if current_analysis is None:
+        return None
+
+    for key, value in payload.items():
+        setattr(current_analysis, key, value)
+
+    try:
+        db.commit()
+        db.refresh(current_analysis)
+        return current_analysis
+    except Exception:
+        db.rollback()
+        raise
+
+
 # 사용자가 조회한 기사 목록을 최근 조회 순으로 반환
 # 목록에 필요한 title, category를 개인해설에 함께 저장해 두므로 article을 조인하지 않는다
 # personal_analysis에는 조회 시각 컬럼이 없어 id 역순을 최근 순으로 대신 쓴다
