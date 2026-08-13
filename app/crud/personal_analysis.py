@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.enums import UserResponseEnum
 from app.models.personal_analysis import PersonalAnalysis
 
 
@@ -58,6 +59,22 @@ def get_viewed_analyses(
     stmt = (
         select(PersonalAnalysis)
         .where(PersonalAnalysis.user_id == user_id)
+        .order_by(PersonalAnalysis.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    return db.execute(stmt).scalars().all()
+
+
+def get_helpful_analyses(
+    db: Session, user_id: int, limit: int, offset: int
+) -> list[PersonalAnalysis]:
+    stmt = (
+        select(PersonalAnalysis)
+        .where(
+            PersonalAnalysis.user_id == user_id,
+            PersonalAnalysis.user_response == UserResponseEnum.GOOD,
+        )
         .order_by(PersonalAnalysis.id.desc())
         .limit(limit)
         .offset(offset)

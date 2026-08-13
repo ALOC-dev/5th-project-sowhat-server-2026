@@ -60,6 +60,14 @@ def get_viewed_articles(
     db: Session, user_id: int, limit: int, offset: int
 ) -> list[PersonalAnalysis]:
     return personal_crud.get_viewed_analyses(db, user_id, limit, offset)
+
+
+def get_helpful_analyses(
+    db: Session, user_id: int, limit: int, offset: int
+) -> list[PersonalAnalysis]:
+    return personal_crud.get_helpful_analyses(db, user_id, limit, offset)
+
+
 def submit_analysis_reaction(
     db: Session,
     user_id: int,
