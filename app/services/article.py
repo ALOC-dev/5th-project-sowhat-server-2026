@@ -26,7 +26,7 @@ from app.services.llm_service import (
 from app.services.llm.recommend import recommend_by_cosine_similarity
 
 PREVIEW_CONTENT_LENGTH = 25
-RECOMMENDATION_TOP_K = 20
+RECOMMENDATION_TOP_K = 5
 
 
 # 목록 응답에는 본문 전체가 필요 없어 미리보기 길이로 잘라 내보낸다
@@ -38,8 +38,13 @@ def _truncate_preview_content(articles: list[Article]) -> list[Article]:
     return articles
 
 
-def get_all_articles(db: Session) -> list[Article]:
-    articles = article_crud.get_all_articles(db)
+def get_all_articles(
+    db: Session,
+    category: CategoryEnum | None,
+    limit: int,
+    offset: int,
+) -> list[Article]:
+    articles = article_crud.get_all_articles(db, category, limit, offset)
 
     return _truncate_preview_content(articles)
 

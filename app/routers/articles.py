@@ -19,8 +19,11 @@ router = APIRouter(prefix="/api/articles", tags=["articles"])
 @router.get("", response_model=list[ArticlePreviewResponse])
 def list_articles(
     db: Session = Depends(get_db),
+    category: CategoryEnum | None = Query(default=None),
+    limit: int = Query(default=30),
+    offset: int = Query(default=0),
 ):
-    return article_service.get_all_articles(db)
+    return article_service.get_all_articles(db, category, limit, offset)
 
 
 # ── GET /articles/recommendations ─────────────────────────
