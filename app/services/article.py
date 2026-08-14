@@ -201,16 +201,21 @@ async def sse_get_personal_analysis(
 
 
 async def sse_update_search_result(
-    db: Session, personal_analysis: dict, link_targets: list[str]
+    personal_analysis: dict, link_targets: list[str]
 ) -> list[dict]:
-    selected_links = await select_search_result(
-        personal_analysis["solution"], link_targets
-    )
+    db = SessionLocal()
 
-    personal_crud.update_analysis(
-        db,
-        personal_analysis["id"],
-        {"links": selected_links},
-    )
+    try:
+        selected_links = await select_search_result(
+            personal_analysis["solution"], link_targets
+        )
 
-    return selected_links
+        personal_crud.update_analysis(
+            db,
+            personal_analysis["id"],
+            {"links": selected_links},
+        )
+
+    finally:
+        db.close()
+        return selected_links

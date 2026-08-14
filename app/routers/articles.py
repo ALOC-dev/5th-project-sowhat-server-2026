@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlalchemy.orm import Session
@@ -78,10 +80,14 @@ async def get_personal_analysis_stream(
         yield ServerSentEvent(data=analysis, event="analysis")
 
         if len(link_targets) > 0:
+            # 중간에 연결이 끊겨도 링크 검색결과 저장은 끝까지 실행되도록 asyncio 사용
+            # data는 링크 검색 결과가 나왔을 때 받기만 함
+            link_search_task = asyncio.create_task(
+                article_service.sse_update_search_result(analysis, link_targets)
+            )
+
             yield ServerSentEvent(
-                data=await article_service.sse_update_search_result(
-                    db, analysis, link_targets
-                ),
+                data=await asyncio.shield(link_search_task),
                 event="links",
             )
 
