@@ -203,6 +203,7 @@ async def sse_get_personal_analysis(
 async def sse_update_search_result(
     personal_analysis: dict, link_targets: list[str]
 ) -> list[dict]:
+    # SSE 요청이 끊어졌을 때 db 세션이 함께 닫힐 위험이 있어 함수 내에서 따로 열기
     db = SessionLocal()
 
     try:
@@ -216,6 +217,7 @@ async def sse_update_search_result(
             {"links": selected_links},
         )
 
+        return selected_links
+
     finally:
         db.close()
-        return selected_links
