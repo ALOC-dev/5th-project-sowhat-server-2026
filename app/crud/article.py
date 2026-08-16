@@ -8,6 +8,8 @@ from app.models.article import Article
 from sqlalchemy import delete, exists, select
 from sqlalchemy.exc import IntegrityError
 
+from app.models.enums import CategoryEnum
+
 
 def create_article(db: Session, payload: dict) -> Article:
     article = Article(**payload)
@@ -50,14 +52,23 @@ def create_articles(db: Session, articles: list[dict]) -> list[Article]:
     return created
 
 
-# 최신 기사 최대 30개씩 불러오기 (페이지네이션)
-def get_all_articles(db: Session, limit: int = 30, offset: int = 0) -> list[Article]:
+# 최신 기사 최대 30개씩 불러오기 (페이지네이션). category가 없으면 전체 기사 대상
+def get_all_articles(
+    db: Session,
+    category: CategoryEnum | None = None,
+    limit: int = 30,
+    offset: int = 0,
+) -> list[Article]:
     stmt = (
         select(Article)
         .order_by(Article.published_at.desc())
         .limit(limit)
         .offset(offset)
     )
+
+    if category is not None:
+        stmt = stmt.where(Article.category == category)
+
     return db.execute(stmt).scalars().all()
 
 

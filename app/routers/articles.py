@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlalchemy.orm import Session
@@ -5,7 +7,11 @@ from app.db.database import get_db
 
 from app.models.enums import AgeGroupEnum, CategoryEnum, JobEnum
 from app.schemas.article import ArticlePreviewResponse, ArticleDetailResponse
-from app.schemas.personal_analysis import ExperienceAnalysis
+from app.schemas.personal_analysis import (
+    AnalysisReactionRequest,
+    AnalysisReactionResponse,
+    ExperienceAnalysis,
+)
 
 import app.services.article as article_service
 import app.services.auth as auth_service
@@ -17,8 +23,27 @@ router = APIRouter(prefix="/api/articles", tags=["articles"])
 @router.get("", response_model=list[ArticlePreviewResponse])
 def list_articles(
     db: Session = Depends(get_db),
+    category: CategoryEnum | None = Query(default=None),
+    limit: int = Query(default=30),
+    offset: int = Query(default=0),
 ):
-    return article_service.get_all_articles(db)
+    return article_service.get_all_articles(db, category, limit, offset)
+
+
+# POST /articles/{article_id}/analysis/reaction
+@router.post(
+    "/{article_id}/analysis/reaction", response_model=AnalysisReactionResponse
+)
+def submit_analysis_reaction(
+    article_id: int,
+    payload: AnalysisReactionRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = auth_service.get_current_user(db, request)
+    return article_service.submit_analysis_reaction(
+        db, current_user.id, article_id, payload.user_response
+    )
 
 
 # ── GET /articles/recommendations ─────────────────────────
@@ -78,10 +103,14 @@ async def get_personal_analysis_stream(
         yield ServerSentEvent(data=analysis, event="analysis")
 
         if len(link_targets) > 0:
+            # 중간에 연결이 끊겨도 링크 검색결과 저장은 끝까지 실행되도록 asyncio 사용
+            # data는 링크 검색 결과가 나왔을 때 받기만 함
+            link_search_task = asyncio.create_task(
+                article_service.sse_update_search_result(analysis, link_targets)
+            )
+
             yield ServerSentEvent(
-                data=await article_service.sse_update_search_result(
-                    db, analysis, link_targets
-                ),
+                data=await asyncio.shield(link_search_task),
                 event="links",
             )
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 
 import app.crud.article as article_crud
@@ -11,7 +11,7 @@ from app.db.database import SessionLocal
 from app.models.article import Article
 from app.models.personal_analysis import PersonalAnalysis
 from app.exceptions.domain import ArticleNotFoundError, UserNotFoundError
-from app.models.enums import AgeGroupEnum, CategoryEnum, JobEnum
+from app.models.enums import AgeGroupEnum, CategoryEnum, JobEnum, UserResponseEnum
 from app.models.user import User
 from app.services.llm.embedding_tasks import (
     ensure_article_embedding,
@@ -26,7 +26,7 @@ from app.services.llm_service import (
 from app.services.llm.recommend import recommend_by_cosine_similarity
 
 PREVIEW_CONTENT_LENGTH = 25
-RECOMMENDATION_TOP_K = 20
+RECOMMENDATION_TOP_K = 5
 
 
 # 목록 응답에는 본문 전체가 필요 없어 미리보기 길이로 잘라 내보낸다
@@ -38,8 +38,13 @@ def _truncate_preview_content(articles: list[Article]) -> list[Article]:
     return articles
 
 
-def get_all_articles(db: Session) -> list[Article]:
-    articles = article_crud.get_all_articles(db)
+def get_all_articles(
+    db: Session,
+    category: CategoryEnum | None,
+    limit: int,
+    offset: int,
+) -> list[Article]:
+    articles = article_crud.get_all_articles(db, category, limit, offset)
 
     return _truncate_preview_content(articles)
 
@@ -60,6 +65,31 @@ def get_viewed_articles(
     db: Session, user_id: int, limit: int, offset: int
 ) -> list[PersonalAnalysis]:
     return personal_crud.get_viewed_analyses(db, user_id, limit, offset)
+
+
+def get_helpful_analyses(
+    db: Session, user_id: int, limit: int, offset: int
+) -> list[PersonalAnalysis]:
+    return personal_crud.get_helpful_analyses(db, user_id, limit, offset)
+
+
+def submit_analysis_reaction(
+    db: Session,
+    user_id: int,
+    article_id: int,
+    user_response: UserResponseEnum,
+) -> PersonalAnalysis:
+    personal_analysis = personal_crud.get_analysis_by_article_and_user(
+        db, article_id, user_id
+    )
+    if personal_analysis is None:
+        raise HTTPException(status_code=404, detail="Personal analysis not found.")
+
+    return personal_crud.update_analysis(
+        db, personal_analysis.id, {"user_response": user_response}
+    )
+
+
 
 
 async def get_common_analysis(
@@ -201,16 +231,23 @@ async def sse_get_personal_analysis(
 
 
 async def sse_update_search_result(
-    db: Session, personal_analysis: dict, link_targets: list[str]
+    personal_analysis: dict, link_targets: list[str]
 ) -> list[dict]:
-    selected_links = await select_search_result(
-        personal_analysis["solution"], link_targets
-    )
+    # SSE 요청이 끊어졌을 때 db 세션이 함께 닫힐 위험이 있어 함수 내에서 따로 열기
+    db = SessionLocal()
 
-    personal_crud.update_analysis(
-        db,
-        personal_analysis["id"],
-        {"links": selected_links},
-    )
+    try:
+        selected_links = await select_search_result(
+            personal_analysis["solution"], link_targets
+        )
 
-    return selected_links
+        personal_crud.update_analysis(
+            db,
+            personal_analysis["id"],
+            {"links": selected_links},
+        )
+
+        return selected_links
+
+    finally:
+        db.close()

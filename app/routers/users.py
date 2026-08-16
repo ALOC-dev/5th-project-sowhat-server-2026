@@ -63,6 +63,18 @@ def get_my_viewed_articles(
     return article_service.get_viewed_articles(db, current_user.id, limit, offset)
 
 
+# GET /api/users/me/helpful-analyses
+@router.get("/me/helpful-analyses", response_model=list[ViewedArticleResponse])
+def get_my_helpful_analyses(
+    request: Request,
+    limit: int = Query(20, ge=1, le=50),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    current_user = auth_service.get_current_user(db, request)
+    return article_service.get_helpful_analyses(db, current_user.id, limit, offset)
+
+
 # ── POST /api/users/check-id ──────────────────────────────
 # 중복 login_id가 있는지 조회
 @router.post("/check-id", response_model=dict[str, bool])

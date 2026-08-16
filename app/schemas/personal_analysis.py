@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import CategoryEnum
+from app.models.enums import CategoryEnum, UserResponseEnum
 
 
 # 검색 결과 중 선택한 인덱스 및 관련도 점수 반환
@@ -49,6 +49,18 @@ class ViewedArticleResponse(BaseModel):
     article_id: int
     title: str
     category: CategoryEnum
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Personal analysis reaction request and response
+class AnalysisReactionRequest(BaseModel):
+    user_response: UserResponseEnum
+
+
+class AnalysisReactionResponse(BaseModel):
+    article_id: int
+    user_response: UserResponseEnum
 
     model_config = ConfigDict(from_attributes=True)
 
