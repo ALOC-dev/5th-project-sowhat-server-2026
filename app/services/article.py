@@ -26,7 +26,7 @@ from app.services.llm_service import (
 from app.services.llm.recommend import recommend_by_cosine_similarity
 
 PREVIEW_CONTENT_LENGTH = 25
-RECOMMENDATION_TOP_K = 20
+RECOMMENDATION_TOP_K = 5
 
 
 # 목록 응답에는 본문 전체가 필요 없어 미리보기 길이로 잘라 내보낸다
@@ -38,8 +38,13 @@ def _truncate_preview_content(articles: list[Article]) -> list[Article]:
     return articles
 
 
-def get_all_articles(db: Session) -> list[Article]:
-    articles = article_crud.get_all_articles(db)
+def get_all_articles(
+    db: Session,
+    category: CategoryEnum | None,
+    limit: int,
+    offset: int,
+) -> list[Article]:
+    articles = article_crud.get_all_articles(db, category, limit, offset)
 
     return _truncate_preview_content(articles)
 
@@ -226,16 +231,23 @@ async def sse_get_personal_analysis(
 
 
 async def sse_update_search_result(
-    db: Session, personal_analysis: dict, link_targets: list[str]
+    personal_analysis: dict, link_targets: list[str]
 ) -> list[dict]:
-    selected_links = await select_search_result(
-        personal_analysis["solution"], link_targets
-    )
+    # SSE 요청이 끊어졌을 때 db 세션이 함께 닫힐 위험이 있어 함수 내에서 따로 열기
+    db = SessionLocal()
 
-    personal_crud.update_analysis(
-        db,
-        personal_analysis["id"],
-        {"links": selected_links},
-    )
+    try:
+        selected_links = await select_search_result(
+            personal_analysis["solution"], link_targets
+        )
 
-    return selected_links
+        personal_crud.update_analysis(
+            db,
+            personal_analysis["id"],
+            {"links": selected_links},
+        )
+
+        return selected_links
+
+    finally:
+        db.close()
