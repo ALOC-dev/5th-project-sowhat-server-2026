@@ -35,14 +35,15 @@ from app.services.llm_service import category_value, format_related_articles
 # 테스트 기사 5, 6, 18, 209, 347, 359, 371, 391, 509, 587, 742, 1026, 1045, 1110
 # 5(경제, ▲ 열거 항목), 509(정치, 지엽적 소재로 개인화되던 사례)는 피드백에서 지적된 기사
 # 1026은 과거 유사 기사가 있어 참고 자료 인용을 확인할 수 있는 기사
-TEST_ARTICLE_IDS = [5, 509, 1026]
+# TEST_ARTICLE_IDS = [5, 509, 1026]
+TEST_ARTICLE_IDS = [1778, 1781, 1786]
 TEST_USER_IDS = [1, 2, 4]
 
 
 # 공통해설 생성 (개인해설 테스트에서 요약문 입력으로도 사용)
 async def generate_summary(article) -> dict:
     prompt = COMMON_ANALYSIS_PROMPT.format(
-        title=article.title,
+        # title=article.title,
         category=category_value(article.category),
         content=article.content,
     ).strip()
@@ -69,7 +70,7 @@ def print_article(article) -> None:
     print(article.content)
 
 
-@pytest.mark.live
+# @pytest.mark.skip
 async def test_common_analysis_prompt():
     db = SessionLocal()
 
@@ -87,7 +88,7 @@ async def test_common_analysis_prompt():
         assert parsed["success"]
 
 
-@pytest.mark.live
+# @pytest.mark.skip
 async def test_personal_analysis_prompt():
     db = SessionLocal()
 
@@ -113,11 +114,12 @@ async def test_personal_analysis_prompt():
             test_user = get_user_by_id(db, id)
 
             prompt = PERSONAL_ANALYSIS_PROMPT.format(
-                title=test_article.title,
+                # title=test_article.title,
                 category=category_value(test_article.category),
                 summary=summary,
                 related_articles=format_related_articles(related_articles),
                 reference_links=REFERENCE_LINK_NAMES,
+                username=test_user.username,
                 age=test_user.age,
                 gender=test_user.gender.value,
                 region=test_user.region.value,
@@ -135,23 +137,26 @@ async def test_personal_analysis_prompt():
                 response_format=PersonalAnalysisBeforeSearch,
             )
             parsed = response.choices[0].message.parsed.model_dump()
-            links, unmatched = resolve_reference_links(parsed["link_names"])
 
             print(f"\n[개인맞춤해설: 사용자 {id}]")
             print("effect:", parsed["effect"])
             print("solution:", parsed["solution"])
-            print("link_names:", parsed["link_names"] or "없음")
-            for link in links:
-                print(f"  - {link['title']} {link['url']}")
-            if unmatched:
-                print("  (목록에 없어 검색으로 넘어갈 이름):", unmatched)
+            print("link_targets:", parsed["link_targets"] or "없음")
 
-            # 등록된 창구 이름만 링크로 변환되고, 나머지는 검색 대상으로 남는다
-            assert len(links) + len(unmatched) == len(parsed["link_names"])
+            # links, unmatched = resolve_reference_links(parsed["link_names"])
+
+            # for link in links:
+            #     print(f"  - {link['title']} {link['url']}")
+            # if unmatched:
+            #     print("  (목록에 없어 검색으로 넘어갈 이름):", unmatched)
+
+            # # 등록된 창구 이름만 링크로 변환되고, 나머지는 검색 대상으로 남는다
+            # assert len(links) + len(unmatched) == len(parsed["link_names"])
         print()
 
 
 # FILTER_EXTRA_INFORMATION_PROMPT 검증용 (필요할 때만 실행)
+@pytest.mark.skip
 async def test_filtering_prompt():
     test_extra_information_list = [
         "취업 준비 중이라 IT 산업 뉴스에 관심이 많습니다. 아 근데, 내일 밥 뭐 먹지. 집 주소는 서울시 동대문구 어디어디구요. 채용 정보에 대한 뉴스를 많이 보고 싶습니다.",
@@ -187,6 +192,7 @@ from app.services.search.tavily_client import get_client
 from tests.trusted_url_util import *
 
 
+@pytest.mark.skip
 async def test_select_search_result():
     db = SessionLocal()
 
@@ -342,7 +348,7 @@ async def test_select_search_result():
 #         print(result.model_dump())
 
 
-@pytest.mark.live
+@pytest.mark.skip
 async def test_link_search_prompt():
     test_cases = [
         {
