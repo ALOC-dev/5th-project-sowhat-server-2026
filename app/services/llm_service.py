@@ -44,7 +44,6 @@ async def generate_common_analysis(article: Article | dict) -> dict:
         }
 
     prompt = COMMON_ANALYSIS_PROMPT.format(
-        title=article["title"],
         category=article["category"],
         content=article["content"],
     )
@@ -86,7 +85,6 @@ async def generate_personal_analysis(
         summary = common_analysis["summary"]
 
     prompt = PERSONAL_ANALYSIS_PROMPT.format(
-        title=article.title,
         category=category_value(article.category),
         summary=summary,
         related_articles=format_related_articles(related_articles),
@@ -138,7 +136,6 @@ async def generate_experience_analysis(
         summary = common_analysis["summary"]
 
     prompt = EXPERIENCE_ANALYSIS_PROMPT.format(
-        title=article.title,
         category=category_value(article.category),
         summary=summary,
         age_group=age_group,
