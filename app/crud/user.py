@@ -45,3 +45,18 @@ def update_user(db: Session, id: int, payload: dict) -> User:
     except Exception:
         db.rollback()
         raise
+
+
+def delete_user_by_id(db: Session, id: int) -> bool:
+    db_user = db.query(User).filter(User.id == id).first()
+
+    if db_user is None:
+        return False
+
+    try:
+        db.delete(db_user)
+        db.commit()
+        return True
+    except Exception:
+        db.rollback()
+        raise

@@ -63,7 +63,7 @@ def get_my_viewed_articles(
     return article_service.get_viewed_articles(db, current_user.id, limit, offset)
 
 
-# GET /api/users/me/helpful-analyses
+# GET /api/users/me/helpful-analyses ──────────────────────────
 @router.get("/me/helpful-analyses", response_model=list[ViewedArticleResponse])
 def get_my_helpful_analyses(
     request: Request,
@@ -73,6 +73,14 @@ def get_my_helpful_analyses(
 ):
     current_user = auth_service.get_current_user(db, request)
     return article_service.get_helpful_analyses(db, current_user.id, limit, offset)
+
+
+# ── DELETE /api/users/me ─────────────────────────────────────
+# 회원 탈퇴
+@router.delete("/me", response_model=dict[str, bool])
+def delete_my_account(request: Request, db: Session = Depends(get_db)):
+    current_user = auth_service.get_current_user(db, request)
+    return user_service.delete_user(db, current_user.id)
 
 
 # ── POST /api/users/check-id ──────────────────────────────

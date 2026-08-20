@@ -85,6 +85,15 @@ async def generate_personal_analysis(
         common_analysis = await generate_common_analysis(article)
         summary = common_analysis["summary"]
 
+    extra_information = (
+        ""
+        if (
+            not isinstance(user.filtered_extra_information, str)
+            or len(user.filtered_extra_information.strip()) == 0
+        )
+        else ("추가 정보: " + user.filtered_extra_information)
+    )
+
     prompt = PERSONAL_ANALYSIS_PROMPT.format(
         title=article.title,
         category=category_value(article.category),
@@ -98,8 +107,10 @@ async def generate_personal_analysis(
         job=user.job.value,
         interest=user.interest.value,
         purpose=user.purpose.value,
-        extra_information=user.filtered_extra_information,
+        extra_information=extra_information,
     )
+
+    print(prompt)
 
     response = await create_json_completion(
         messages=[
@@ -327,7 +338,7 @@ async def generate_user_profile_embedding(user: User) -> list[float]:
         f"현재 직업은 {user.job.value}이며, 주로 {user.region.value} 지역의 소식에 관심이 있습니다.",
         f"평소에 {user.interest.value} 분야의 뉴스를 즐겨 읽습니다.",
         f"뉴스를 읽는 주된 목적은 {user.purpose.value}입니다.",
-        f"추가적인 사용자 성향 정보는 다음과 같습니다: {user.extra_information}",
+        f"추가적인 사용자 성향 정보는 다음과 같습니다: {user.filtered_extra_information}",
     ]
     embeddings = await get_embedding(
         profile_text

@@ -150,7 +150,7 @@ solution에 이 단어들이 있어도 search_purpose에는 옮기지 않는다.
 지역: {region}
 뉴스 소비 목적: {purpose}
 관심사: {interest}
-추가 정보: {extra_information}
+{extra_information}
 </사용자 정보>
 """.strip()
 
