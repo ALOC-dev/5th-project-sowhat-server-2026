@@ -126,7 +126,7 @@ async def test_personal_analysis_prompt():
                 job=test_user.job.value,
                 interest=test_user.interest.value,
                 purpose=test_user.purpose.value,
-                extra_information=test_user.filtered_extra_information,
+                extra_information="추가 정보: " + test_user.filtered_extra_information,
             ).strip()
 
             response = await create_json_completion(

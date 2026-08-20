@@ -182,6 +182,11 @@ def update_user_password(
     return {"success": True}
 
 
+def delete_user(db: Session, user_id: int) -> dict[str, bool]:
+    deleted = crud.delete_user_by_id(db, user_id)
+    return {"success": deleted}
+
+
 def check_duplicate_id(db: Session, payload: dict[str, str]) -> dict[str, bool]:
     login_id = payload.get("login_id", None)
     _validate_login_id(login_id)
