@@ -1,15 +1,35 @@
-from sqlalchemy import Column, ForeignKey, Integer, Text, UniqueConstraint
+from sqlalchemy import JSON, Column, Enum, ForeignKey, Integer, Text, UniqueConstraint
 from app.db.database import Base
+from app.models.enums import CategoryEnum, UserResponseEnum
 
 
 class PersonalAnalysis(Base):
-    __tablename__ = "personal_analysis_id"
+    __tablename__ = "personal_analysis"
     __table_args__ = (
-        UniqueConstraint("article_id", "user_id", name="uq_personal_analysis_article_user"),
+        UniqueConstraint(
+            "article_id", "user_id", name="uq_personal_analysis_article_user"
+        ),
     )
 
-    solution_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    article_id = Column(Integer, ForeignKey("article.article_id"), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("user_info.user_id"), nullable=False, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    article_id = Column(
+        Integer,
+        ForeignKey("article.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        Integer,
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     effect = Column(Text, nullable=False)
     solution = Column(Text, nullable=False)
+    links = Column(
+        JSON, nullable=True
+    )  # solution에서 안내한 공식 창구의 제목과 주소 목록 (없으면 빈 목록)
+    title = Column(Text, nullable=False)
+    category = Column(Enum(CategoryEnum, name="category"), nullable=False)
+    similar_articles = Column(JSON, nullable=True)
+    user_response = Column(Enum(UserResponseEnum, name="user_response"), nullable=True)

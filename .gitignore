@@ -12,4 +12,11 @@ htmlcov/
 .AppleDouble
 .LSOverride
 
+# temp files
+tempCodeRunnerFile.py
+
+.agent/
+
 .env
+
+.vs/

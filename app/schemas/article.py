@@ -1,39 +1,31 @@
-from pydantic import BaseModel
-
-# class ArticleResponse(BaseModel):
-#     article_id: int
-#     title: str
-#     date: str
-#     content: str
-#     category: str
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict
 
 
-# 임시
-class ArticleResponse(BaseModel):
-    article_id: int
+class ArticlePreviewResponse(BaseModel):
+    id: int
     title: str
-    link: str
+    published_at: datetime
+    publisher: str
     content: str
-    media: str
+    category: str | None = None  # 임시로 None 처리 가능, 실제 서비스 시 삭제
+
+    # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
+    model_config = ConfigDict(from_attributes=True)
 
 
-# class ArticleDetailResponse(BaseModel):
-#     article_id: int
-#     title: str
-#     date: str
-#     content: str
-#     category: str
-#     summary: str
-#     keyword: str
-
-
-# 임시
 class ArticleDetailResponse(BaseModel):
-    article_id: int
+    id: int
     title: str
-    link: str
+    source_url: str
+    published_at: datetime
+    publisher: str
+    reporter: str
+    category: str | None = None
     content: str
-    media: str
-    category: str
     summary: str
-    keyword: str
+    # [{"word": "단어", "description": "뜻 설명"}] 형태의 키워드 JSON
+    keyword: list[dict[str, str]] | None = None
+
+    # DB 객체(ORM)를 바로 Pydantic 모델로 변환할 수 있게 설정
+    model_config = ConfigDict(from_attributes=True)

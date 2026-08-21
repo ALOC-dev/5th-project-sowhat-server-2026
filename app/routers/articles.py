@@ -1,52 +1,122 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+import asyncio
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
+from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 
-from app.schemas.article import ArticleResponse, ArticleDetailResponse
-from app.schemas.personal_analysis import PersonalAnalysis
+from app.models.enums import AgeGroupEnum, CategoryEnum, JobEnum
+from app.schemas.article import ArticlePreviewResponse, ArticleDetailResponse
+from app.schemas.personal_analysis import (
+    AnalysisReactionRequest,
+    AnalysisReactionResponse,
+    ExperienceAnalysis,
+)
 
-import app.services.article as service
+import app.services.article as article_service
+import app.services.auth as auth_service
 
 router = APIRouter(prefix="/api/articles", tags=["articles"])
 
 
 # ── GET /articles ─────────────────────────────────────────
-
-
-@router.get("", response_model=list[ArticleResponse])
+@router.get("", response_model=list[ArticlePreviewResponse])
 def list_articles(
     db: Session = Depends(get_db),
+    category: CategoryEnum | None = Query(default=None),
+    limit: int = Query(default=30),
+    offset: int = Query(default=0),
 ):
-    try:
-        articles = service.get_all_articles(db)
-        return articles
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    return article_service.get_all_articles(db, category, limit, offset)
 
 
-# ── GET /articles/analysis (순서 중요: /{article_id} 보다 위) ──
-
-
-@router.get("/analysis", response_model=PersonalAnalysis)
-async def get_analysis(
-    article_id: int = Query(...),
-    user_id: int = Query(...),
+# POST /articles/{article_id}/analysis/reaction
+@router.post(
+    "/{article_id}/analysis/reaction", response_model=AnalysisReactionResponse
+)
+def submit_analysis_reaction(
+    article_id: int,
+    payload: AnalysisReactionRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ):
-    try:
-        analysis = await service.get_personal_analysis(db, article_id, user_id)
-        return analysis
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    current_user = auth_service.get_current_user(db, request)
+    return article_service.submit_analysis_reaction(
+        db, current_user.id, article_id, payload.user_response
+    )
+
+
+# ── GET /articles/recommendations ─────────────────────────
+@router.get("/recommendations", response_model=list[ArticlePreviewResponse])
+async def get_recommended_articles(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    current_user = auth_service.get_current_user(db, request)
+
+    recommendation = await article_service.get_recommended_articles(db, current_user)
+    return recommendation
 
 
 # ── GET /articles/{article_id} ────────────────────────────
-
-
 @router.get("/{article_id}", response_model=ArticleDetailResponse)
-async def get_article(article_id: int, db: Session = Depends(get_db)):
+async def get_article(
+    article_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    article_detail = await article_service.get_common_analysis(
+        db, article_id, background_tasks
+    )
+    return article_detail
+
+
+# ── GET /articles/{article_id}/analysis/experience ────────────
+@router.get("/{article_id}/analysis/experience", response_model=ExperienceAnalysis)
+async def get_experience_analysis(
+    article_id: int,
+    age_group: AgeGroupEnum = Query(alias="age-group"),
+    job: JobEnum = Query(...),
+    interest: CategoryEnum = Query(...),
+    db: Session = Depends(get_db),
+):
+    return await article_service.get_experience_analysis(
+        db, article_id, age_group, job, interest
+    )
+
+
+# ── GET /articles/{article_id}/analysis/stream ─────────────
+@router.get("/{article_id}/analysis/stream", response_class=EventSourceResponse)
+async def get_personal_analysis_stream(
+    background_tasks: BackgroundTasks,
+    article_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     try:
-        article_detail = await service.get_common_analysis(db, article_id)
-        return article_detail
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        current_user = auth_service.get_current_user(db, request)
+
+        analysis, link_targets = await article_service.sse_get_personal_analysis(
+            db, current_user, article_id, background_tasks
+        )
+
+        yield ServerSentEvent(data=analysis, event="analysis")
+
+        if len(link_targets) > 0:
+            # 중간에 연결이 끊겨도 링크 검색결과 저장은 끝까지 실행되도록 asyncio 사용
+            # data는 링크 검색 결과가 나왔을 때 받기만 함
+            link_search_task = asyncio.create_task(
+                article_service.sse_update_search_result(analysis, link_targets)
+            )
+
+            yield ServerSentEvent(
+                data=await asyncio.shield(link_search_task),
+                event="links",
+            )
+
+    except Exception as exc:
+        print(exc)
+        yield ServerSentEvent(data=exc, event="error")
+
+    finally:
+        yield ServerSentEvent(data={}, event="done")

@@ -1,17 +1,82 @@
-# 시작할 때는 비어있는 리스트 준비, 기사 크롤링->LLM 호출 후 저장하기
-MOCK_ANALYSES = []
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.models.enums import UserResponseEnum
+from app.models.personal_analysis import PersonalAnalysis
 
 
-def create_analysis(payload):
-    next_id = max((a["personal_analysis_id"] for a in MOCK_ANALYSES), default=0) + 1
-    analysis_data = payload.copy()
-    analysis_data["personal_analysis_id"] = next_id
-    MOCK_ANALYSES.append(analysis_data)
-    return analysis_data
+def create_analysis(db: Session, payload: dict) -> PersonalAnalysis:
+    analysis = PersonalAnalysis(**payload)
+
+    try:
+        db.add(analysis)
+        db.commit()
+        db.refresh(analysis)
+        return analysis
+    except Exception:
+        db.rollback()
+        raise
 
 
-def get_analysis_by_article_and_user(article_id, user_id):
-    for a in MOCK_ANALYSES:
-        if a["article_id"] == article_id and a["user_id"] == user_id:
-            return {"effect": a["effect"], "solution": a["solution"]}
-    return None
+def get_analysis_by_article_and_user(
+    db: Session, article_id: int, user_id: int
+) -> PersonalAnalysis:
+    return (
+        db.query(PersonalAnalysis)
+        .filter(
+            PersonalAnalysis.article_id == article_id,
+            PersonalAnalysis.user_id == user_id,
+        )
+        .first()
+    )
+
+
+def update_analysis(db: Session, id: int, payload: dict) -> PersonalAnalysis:
+    current_analysis = (
+        db.query(PersonalAnalysis).filter(PersonalAnalysis.id == id).first()
+    )
+    if current_analysis is None:
+        return None
+
+    for key, value in payload.items():
+        setattr(current_analysis, key, value)
+
+    try:
+        db.commit()
+        db.refresh(current_analysis)
+        return current_analysis
+    except Exception:
+        db.rollback()
+        raise
+
+
+# 사용자가 조회한 기사 목록을 최근 조회 순으로 반환
+# 목록에 필요한 title, category를 개인해설에 함께 저장해 두므로 article을 조인하지 않는다
+# personal_analysis에는 조회 시각 컬럼이 없어 id 역순을 최근 순으로 대신 쓴다
+def get_viewed_analyses(
+    db: Session, user_id: int, limit: int, offset: int
+) -> list[PersonalAnalysis]:
+    stmt = (
+        select(PersonalAnalysis)
+        .where(PersonalAnalysis.user_id == user_id)
+        .order_by(PersonalAnalysis.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    return db.execute(stmt).scalars().all()
+
+
+def get_helpful_analyses(
+    db: Session, user_id: int, limit: int, offset: int
+) -> list[PersonalAnalysis]:
+    stmt = (
+        select(PersonalAnalysis)
+        .where(
+            PersonalAnalysis.user_id == user_id,
+            PersonalAnalysis.user_response == UserResponseEnum.GOOD,
+        )
+        .order_by(PersonalAnalysis.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    return db.execute(stmt).scalars().all()

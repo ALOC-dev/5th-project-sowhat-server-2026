@@ -1,28 +1,215 @@
-# 시작할 때는 비어있는 리스트 준비, 기사 크롤링 후 저장하기
-MOCK_ARTICLES = []
+from datetime import datetime
+
+from sqlalchemy.orm import Session
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
+from app.models.article import Article
+from sqlalchemy import delete, exists, select
+from sqlalchemy.exc import IntegrityError
+
+from app.models.enums import CategoryEnum
 
 
-def create_article(payload):
-    next_id = max((a["article_id"] for a in MOCK_ARTICLES), default=0) + 1
-    new_article = payload.copy()
-    new_article["article_id"] = next_id
-    new_article["category"] = "미분류"  # 임시
-    MOCK_ARTICLES.append(new_article)
-    return new_article
+def create_article(db: Session, payload: dict) -> Article:
+    article = Article(**payload)
+    try:
+        db.add(article)
+        db.commit()
+        db.refresh(article)
+        return article
+    except Exception:
+        db.rollback()
+        raise
 
 
-def create_articles(articles):
-    for article in articles:
-        create_article(article)
+# 기사를 건별 SAVEPOINT로 저장한다.
+# 피드를 동시에 수집하므로 같은 기사가 두 피드에 걸리면 source_url이 충돌할 수 있는데,
+# 한 트랜잭션으로 묶어 저장하면 중복 1건 때문에 배치 전체가 롤백돼 멀쩡한 기사까지 유실된다.
+def create_articles(db: Session, articles: list[dict]) -> list[Article]:
+    created = []
+
+    for payload in articles:
+        article = Article(**payload)
+
+        try:
+            with db.begin_nested():
+                db.add(article)
+                db.flush()
+        except IntegrityError:
+            # 다른 피드가 먼저 저장한 기사다. 건너뛰고 나머지를 계속 저장한다.
+            print(f"[SKIP]  이미 저장된 기사: {payload.get('source_url')}")
+            continue
+
+        created.append(article)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    return created
 
 
-def get_all_articles():
-    return MOCK_ARTICLES
+# 최신 기사 최대 30개씩 불러오기 (페이지네이션). category가 없으면 전체 기사 대상
+def get_all_articles(
+    db: Session,
+    category: CategoryEnum | None = None,
+    limit: int = 30,
+    offset: int = 0,
+) -> list[Article]:
+    stmt = (
+        select(Article)
+        .order_by(Article.published_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    if category is not None:
+        stmt = stmt.where(Article.category == category)
+
+    return db.execute(stmt).scalars().all()
 
 
-def get_article_by_id(id):
-    for a in MOCK_ARTICLES:
-        if a["article_id"] == id:
-            return a
+def get_articles_by_date(db: Session, date: datetime) -> list[Article]:
+    return db.query(Article).filter(Article.published_at >= date).all()
 
-    return None
+
+def find_similar_articles(
+    db: Session,
+    date: datetime,
+    user_embedding: list[float],
+    top_k: int,
+) -> list[Article]:
+    stmt = (
+        select(Article)
+        .where(Article.published_at >= date)
+        .order_by(Article.embedding.cosine_distance(user_embedding))
+        .limit(top_k)
+    )
+    return db.execute(stmt).scalars().all()
+
+
+# 개인해설에서 과거 유사 사례로 인용할 기사를 찾는 함수
+# 임베딩 거리 기준으로 현재 기사와 가까운 과거 기사를 고른다
+def find_related_past_articles(
+    db: Session,
+    article: Article,
+    top_k: int = 3,
+    min_distance: float = 0.05,
+    max_distance: float = 0.5,
+) -> list[Article]:
+    # 임베딩이나 요약이 없으면 인용할 근거를 만들 수 없다
+    if article.embedding is None:
+        return []
+
+    distance = Article.embedding.cosine_distance(article.embedding)
+
+    stmt = (
+        select(Article)
+        .where(
+            Article.id != article.id,
+            Article.published_at < article.published_at,
+            Article.embedding.isnot(None),
+            Article.summary.isnot(None),
+            # 거의 동일한 중복 기사는 과거 사례로서 의미가 없어 제외한다
+            distance > min_distance,
+            distance <= max_distance,
+        )
+        .order_by(distance)
+        .limit(top_k)
+    )
+    return db.execute(stmt).scalars().all()
+
+
+def get_article_by_id(db: Session, id: int) -> Article:
+    return db.query(Article).filter(Article.id == id).first()
+
+
+def get_article_by_source_url(db: Session, source_url: str) -> Article:
+    return db.query(Article).filter(Article.source_url == source_url).first()
+
+
+def exists_similar_article(
+    db: Session,
+    date: datetime,
+    id: int,
+    embedding: list[float],
+    threshold: float = 0.05,
+) -> float:
+    stmt = select(
+        exists().where(
+            (Article.id != id)
+            & (Article.published_at >= date)
+            & (Article.embedding.cosine_distance(embedding) <= threshold)
+        )
+    )
+    return db.execute(stmt).scalar()
+
+
+def update_article_by_id(db: Session, id: int, payload: dict) -> Article | None:
+    article = db.query(Article).filter(Article.id == id).first()
+
+    if article is None:
+        return None
+
+    for key, value in payload.items():
+        setattr(article, key, value)
+
+    try:
+        db.commit()
+        db.refresh(article)
+        return article
+    except Exception:
+        db.rollback()
+        raise
+
+
+def delete_article_by_id(db: Session, id: int) -> int:
+    stmt = delete(Article).where(Article.id == id)
+    result = db.execute(stmt)
+
+    try:
+        db.commit()
+        return result.rowcount
+    except Exception:
+        db.rollback()
+        raise
+
+
+# ========================================================
+
+
+# sqlite 테스트용 함수
+def get_highest_similarity(
+    db: Session,
+    date: datetime,
+    source_url: str,
+    embedding: list[float],
+):
+    # sqlite는 pgvector의 cosine_distance 연산을 지원하지 않으므로
+    # 후보 기사를 파이썬으로 가져와 코사인 유사도를 직접 계산한다.
+    candidates = (
+        db.query(Article)
+        .filter(
+            Article.source_url != source_url,
+            Article.published_at >= date,
+            Article.embedding.isnot(None),
+        )
+        .all()
+    )
+
+    if not candidates:
+        return 0
+
+    query_vec = np.array(embedding).reshape(1, -1)
+    candidate_vecs = np.array([c.embedding for c in candidates])
+    # DB에 float32로 저장됐다 복원되며 발생하는 부동소수점 오차로
+    # 코사인 유사도가 1을 미세하게 초과할 수 있어 clip으로 보정한다.
+    similarities = np.clip(cosine_similarity(query_vec, candidate_vecs)[0], -1.0, 1.0)
+
+    best_idx = int(np.argmax(similarities))
+    similarity = float(similarities[best_idx])
+
+    return similarity
