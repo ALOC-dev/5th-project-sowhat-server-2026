@@ -11,6 +11,7 @@ from app.core.exceptions import register_exception_handlers
 CORS_ALLOW_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://5th-project-sowhat-client-2026.vercel.app",
 ]
 
 
