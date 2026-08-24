@@ -1,0 +1,25 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/sowhat-server
+            git pull origin master
+            source .venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart sowhat
+            sudo systemctl is-active --quiet sowhat
