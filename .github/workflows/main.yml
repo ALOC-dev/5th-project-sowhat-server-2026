@@ -22,4 +22,4 @@ jobs:
             source .venv/bin/activate
             pip install -r requirements.txt
             sudo systemctl restart sowhat
-            sudo systemctl is-active --quiet sowhat
+            sudo systemctl is-active --quiet sowhat 
