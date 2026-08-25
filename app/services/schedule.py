@@ -240,8 +240,8 @@ async def process_yonhap_rss(
                         print(f"[ERROR] 공통 해설 생성 실패: {exc}")
 
                         analysis = {
-                            "summary": "공통 해설 생성 실패",
-                            "keyword": {},
+                            "summary": None,  # 해설 생성 실패 시 다시 불러오는 조건이 summary=NULL일 때이므로 여기서도 None 저장
+                            "keyword": [],  # keyword 응답 스키마가 list 타입이므로 {} 대신 빈 리스트 저장
                         }
 
                     results.append(
