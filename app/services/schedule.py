@@ -241,7 +241,7 @@ async def process_yonhap_rss(
 
                         analysis = {
                             "summary": "공통 해설 생성 실패",
-                            "keyword": {},
+                            "keyword": [],  # keyword 응답 스키마가 list 타입이므로 {} 대신 빈 리스트 저장
                         }
 
                     results.append(
