@@ -59,7 +59,7 @@ REQUEST_HEADERS: dict[str, str] = {
 }
 
 # 테스트 시 수집할 기사 수
-MAX_ARTICLES_PER_FEED: int | None = 5
+MAX_ARTICLES_PER_FEED: int | None = 3
 
 # 연합뉴스 본문 CSS selector 우선순위 목록
 YONHAP_BODY_SELECTORS: list[str] = [

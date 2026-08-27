@@ -18,7 +18,7 @@ CORS_ALLOW_ORIGINS = [
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 서버 시작 시 실행
-    start_crawling_thread(600)
+    start_crawling_thread(900)
 
     yield  # 여기서부터 서버 시작
 
