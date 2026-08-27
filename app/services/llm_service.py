@@ -108,8 +108,6 @@ async def generate_personal_analysis(
         extra_information=extra_information,
     )
 
-    print(prompt)
-
     response = await create_json_completion(
         messages=[
             {"role": "system", "content": SYSTEM_JSON_PROMPT},

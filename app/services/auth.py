@@ -83,11 +83,17 @@ def login(db: Session, payload: LoginRequest, response: Response):
 def logout(response: Response):
     response.delete_cookie(
         key="access_token",
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
         path="/",
     )
 
     response.delete_cookie(
         key="refresh_token",
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
         path="/api/auth/refresh",
     )
 
